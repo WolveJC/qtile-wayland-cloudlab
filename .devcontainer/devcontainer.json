@@ -1,0 +1,19 @@
+{
+  "name": "Qtile Wayland Debian 14 Sandbox",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/nix:1": {
+      "extraOptions": "--extra-experimental-features 'nix-command flakes'"
+    }
+  },
+  "forwardPorts": [6080],
+  "portsAttributes": {
+    "6080": {
+      "label": "noVNC - Qtile Desktop",
+      "onAutoForward": "openBrowser"
+    }
+  }
+}
+
