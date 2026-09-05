@@ -24,7 +24,12 @@
           wlroots
           wayland
           wayland-utils
-          xwayland # Opcional, para apps X11 dentro de Qtile
+          xwayland
+
+          # Lanzador de aplicaciones (Lanzador Wayland nativo)
+          rofi-wayland
+          papirus-icon-theme
+          nerd-fonts.jetbrains-mono
 
           # Transmisión y VNC
           wayvnc
@@ -33,14 +38,14 @@
           seatd
 
           # Utilerías de prueba
-          foot       # Terminal ligere para Wayland
-          alacritty  # Terminal alternativa
-          mesa       # Drivers LLVMpipe (GPU por software)
+          foot
+          alacritty
+          mesa
         ];
 
         shellHook = ''
-          export WLR_RENDERER=pixman  # Forzar renderizado por software (Sin GPU física)
-          export WLR_BACKENDS=headless # Ejecutar pantalla virtual sin monitor real
+          export WLR_RENDERER=pixman
+          export WLR_BACKENDS=headless
           export XDG_RUNTIME_DIR=/tmp/runtime-nix
           mkdir -p $XDG_RUNTIME_DIR
           chmod 0700 $XDG_RUNTIME_DIR
