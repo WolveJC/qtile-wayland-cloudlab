@@ -7,7 +7,7 @@ from libqtile.lazy import lazy
 mod = "mod4"  # Tecla Super (Windows)
 
 terminal = "kitty"
-launcher = "rofi -show drun -theme ~/.config/rofi/ghost.rasi"
+launcher = "rofi -show drun -theme ./scripts/ghost.rasi"
 
 # Expansión correcta de la ruta para Python / Qtile
 overview_script = os.path.expanduser("~/.config/qtile/overview/overview.py")
