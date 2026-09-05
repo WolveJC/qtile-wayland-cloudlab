@@ -1,0 +1,60 @@
+/* ~/.config/rofi/ghost.rasi */
+configuration {
+    modi: "drun";
+    show-icons: true;
+    icon-theme: "Papirus";
+    font: "JetBrainsMono Nerd Font 11";
+}
+
+* {
+    background-color: transparent;
+    text-color: #cdd6f4;
+}
+
+window {
+    width: 35%;
+    transparency: "real";
+    background-color: rgba(24, 24, 37, 0.80); /* Cristal esmerilado Dark Catppuccin */
+    border: 2px;
+    border-color: #89b4fa;
+    border-radius: 16px;
+    padding: 20px;
+}
+
+mainbox {
+    children: [ inputbar, listview ];
+    spacing: 15px;
+}
+
+inputbar {
+    children: [ entry ];
+    background-color: rgba(49, 50, 68, 0.6);
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+entry {
+    placeholder: "Buscar aplicación...";
+    placeholder-color: #6c7086;
+}
+
+listview {
+    lines: 7;
+    columns: 1;
+    fixed-height: false;
+}
+
+element {
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+element selected {
+    background-color: #313244;
+    text-color: #89b4fa;
+}
+
+element-icon {
+    size: 24px;
+    margin: 0 10px 0 0;
+}
