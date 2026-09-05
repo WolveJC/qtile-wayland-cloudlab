@@ -19,6 +19,9 @@
           python3Packages.pywayland
           python3Packages.cffi
           python3Packages.cairocffi
+          python3Packages.websockify
+          procps
+          fontconfig
 
           # Componentes de Wayland y Display Headless
           wlroots
@@ -27,14 +30,13 @@
           xwayland
 
           # Lanzador de aplicaciones (Lanzador Wayland nativo)
-          rofi-wayland
+          rofi
           papirus-icon-theme
           nerd-fonts.jetbrains-mono
 
           # Transmisión y VNC
           wayvnc
           novnc
-          websockify
           seatd
 
           # Utilerías de prueba

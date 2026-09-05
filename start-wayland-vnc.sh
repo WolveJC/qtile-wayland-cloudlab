@@ -12,8 +12,24 @@ export WLR_RENDERER=pixman
 
 # 2. Iniciar Qtile en modo Wayland en segundo plano
 echo "Iniciando Qtile Wayland..."
-qtile start -b wayland &
+qtile start -b wayland -c ./config.py &
 QTILE_PID=$!
+
+# Esperar a que el socket de Wayland sea creado por Qtile
+echo "Esperando socket de Wayland..."
+while [ ! -S "$XDG_RUNTIME_DIR/wayland-0" ] && [ ! -S "$XDG_RUNTIME_DIR/wayland-1" ]; do
+    sleep 0.5
+    done
+
+    # Asignar la variable de entorno para que wayvnc la reconozca
+    if [ -S "$XDG_RUNTIME_DIR/wayland-0" ]; then
+        export WAYLAND_DISPLAY=wayland-0
+        else
+            export WAYLAND_DISPLAY=wayland-1
+            fi
+
+            echo "Wayland iniciado en $WAYLAND_DISPLAY"
+            
 
 sleep 2
 
