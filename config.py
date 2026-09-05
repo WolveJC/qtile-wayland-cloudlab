@@ -40,7 +40,8 @@ reconfigure_screens = True
 # Hook de Autoarranque (Ejecuta autostart.sh)
 @hook.subscribe.startup_once
 def autostart():
-    script = os.path.expanduser('~/.config/qtile/autostart.sh')
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    script = os.path.expanduser(base_dir, 'autostart.sh')
     if os.path.exists(script):
         subprocess.Popen([script])
 
