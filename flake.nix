@@ -40,8 +40,8 @@
           seatd
 
           # Utilerías de prueba
-          foot
-          alacritty
+          kitty
+          fish
           mesa
         ];
 
