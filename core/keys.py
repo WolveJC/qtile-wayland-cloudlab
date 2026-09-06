@@ -7,10 +7,13 @@ from libqtile.lazy import lazy
 mod = "mod4"  # Tecla Super (Windows)
 
 terminal = "kitty"
-launcher = "rofi -show drun -theme ./scripts/ghost.rasi"
 
-# Expansión correcta de la ruta para Python / Qtile
-overview_script = os.path.expanduser("~/.config/qtile/overview/overview.py")
+# Obtener la ruta base del repositorio dinámicamente
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+launcher = f"rofi -show drun -theme {os.path.join(base_dir, 'scripts/ghost.rasi')}"
+overview_script = os.path.join(base_dir, "overview/overview.py")
+
 overview_cmd = f"python3 {overview_script}"
 
 keys = [
