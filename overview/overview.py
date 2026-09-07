@@ -9,12 +9,16 @@ from PySide6.QtWidgets import (QApplication, QWidget, QHBoxLayout,
 from PySide6.QtGui import QPixmap, QImage, QIcon
 from PySide6.QtCore import Qt, QSize, QPropertyAnimation, QRect, QEasingCurve
 
+# --- Resolución Dinámica de Directorios ---
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAM_DIR = "/dev/shm/qtile_overview"
 PALETTE_FILE = os.path.join(RAM_DIR, "palette.json")
+WP_DIR = os.path.join(BASE_DIR, "wallpapers")
+
 os.makedirs(RAM_DIR, exist_ok=True)
 
 
-# --- PARTE 4: Carga de Paleta Dinámica desde RAM ---
+# --- Carga de Paleta Dinámica desde RAM ---
 def load_color_palette() -> dict:
     """Carga los colores dinámicos desde RAM (/dev/shm). Fallback a Catppuccin si no existe."""
     default_palette = {
@@ -61,6 +65,7 @@ class AppIconBar(QWidget):
             "alacritty": "utilities-terminal",
             "firefox": "firefox",
             "chromium": "chromium",
+            "google-chrome": "google-chrome",
             "code": "visual-studio-code",
             "vscodium": "vscodium",
             "spotify": "spotify",
@@ -77,7 +82,7 @@ class WorkspaceCard(QWidget):
         super().__init__(parent)
         self.name = name
         self.bg_path = bg_path
-        self.palette = palette  # Recibe la paleta cargada
+        self.palette = palette
         self.is_selected = False
         self.setFixedSize(280, 160)
         
@@ -85,7 +90,6 @@ class WorkspaceCard(QWidget):
         self.main_layout.setContentsMargins(8, 8, 8, 8)
         
         self.lbl_title = QLabel(f"Workspace {name}", self)
-        # PARTE 4: Color de texto dinámico
         self.lbl_title.setStyleSheet(f"color: {self.palette['text_color']}; font-weight: bold; font-size: 12px;")
         self.main_layout.addWidget(self.lbl_title)
 
@@ -111,7 +115,6 @@ class WorkspaceCard(QWidget):
 
     def set_selected(self, selected: bool):
         self.is_selected = selected
-        # PARTE 4: Hojas de estilo dinámicas basadas en la paleta JSON
         if selected:
             self.setStyleSheet(f"""
                 WorkspaceCard {{
@@ -137,10 +140,9 @@ class OverviewWindow(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.showFullScreen()
 
-        # PARTE 4: Inyección de la paleta en el contenedor principal
         self.palette = load_color_palette()
 
-        # PARTE 2: Fondo Dinámico
+        # Fondo Dinámico Desenfocado
         self.lbl_full_bg = QLabel(self)
         self.lbl_full_bg.setScaledContents(True)
         self.lbl_full_bg.resize(self.size())
@@ -151,7 +153,7 @@ class OverviewWindow(QWidget):
         self.blur_effect.setBlurHints(QGraphicsBlurEffect.PerformanceHint)
         self.lbl_full_bg.setGraphicsEffect(self.blur_effect)
 
-        # PARTE 4: Overlay dinámico según paleta
+        # Overlay dinámico
         self.overlay = QWidget(self)
         self.overlay.resize(self.size())
         self.overlay.setStyleSheet(f"background-color: {self.palette['bg_overlay']};")
@@ -170,7 +172,8 @@ class OverviewWindow(QWidget):
 
         for i in range(1, 6):
             group_name = str(i)
-            bg_path = os.path.expanduser(f"~/.config/qtile/wallpapers/wp_{i}.jpg")
+            # Ruta absoluta corregida utilizando el repositorio
+            bg_path = os.path.join(WP_DIR, f"wp_{i}.jpg")
             
             is_active = (group_name == current_group)
             if is_active:
@@ -181,7 +184,7 @@ class OverviewWindow(QWidget):
             card = WorkspaceCard(
                 bg_path=bg_path, 
                 name=group_name,
-                palette=self.palette, # Se pasa la paleta a cada tarjeta
+                palette=self.palette,
                 app_classes=apps_in_group, 
                 is_active=is_active, 
                 parent=self
@@ -211,7 +214,7 @@ class OverviewWindow(QWidget):
         else:
             self.lbl_full_bg.clear()
 
-    # PARTE 3: Animación Zoom de Entrada
+    # Animación Zoom de Entrada + Disparo de Sincronización Global
     def animate_zoom_and_exit(self, card: WorkspaceCard):
         self.is_animating = True
         card.raise_()
@@ -232,7 +235,15 @@ class OverviewWindow(QWidget):
         self.anim.setEasingCurve(QEasingCurve.OutCubic)
 
         def on_finished():
+            # 1. Cambiar de Workspace en Qtile
             self.switch_qtile_group(card.name)
+            
+            # 2. Ejecutar la Sincronización Camaleón Global (theme_sync.sh)
+            sync_script = os.path.join(BASE_DIR, "scripts", "theme_sync.sh")
+            if os.path.exists(sync_script) and os.path.exists(card.bg_path):
+                subprocess.Popen(["bash", sync_script, card.bg_path])
+                
+            # 3. Cerrar la interfaz libera RAM de forma inmediata
             self.close()
 
         self.anim.finished.connect(on_finished)

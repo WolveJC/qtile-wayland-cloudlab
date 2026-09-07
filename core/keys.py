@@ -1,5 +1,6 @@
 # ~/.config/qtile/core/keys.py
 import os
+import sys
 from libqtile.config import Key
 from libqtile.lazy import lazy
 
@@ -11,10 +12,16 @@ terminal = "kitty"
 # Obtener la ruta base del repositorio dinámicamente
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-launcher = f"rofi -show drun -theme {os.path.join(base_dir, 'scripts/ghost.rasi')}"
-overview_script = os.path.join(base_dir, "overview/overview.py")
+ghost_theme = os.path.join(base_dir, "scripts", "ghost.rasi")
+launcher = f"rofi -show drun -theme {ghost_theme}"
+venv_python_candidate = os.path.join(base_dir, "venv", "bin", "python")
+if os.path.exists(venv_python_candidate):
+    VENV_PYTHON = venv_python_candidate
+else:
+    VENV_PYTHON = sys.executable
+overview_script = os.path.join(base_dir, "overview", "overview.py")
 
-overview_cmd = f"python3 {overview_script}"
+overview_cmd = f"{VENV_PYTHON} {overview_script}"
 
 keys = [
     # -------------------------------------------------------------------------

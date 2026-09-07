@@ -1,12 +1,21 @@
 #!/usr/bin/env bash
 
+# Detectar la ruta base del repositorio y la ubicación del entorno virtual
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+VENV_PY="$SCRIPT_DIR/venv/bin/python"
+
+# Fallback al python3 del sistema de forma compatible con entornos POSIX/Docker
+if [ ! -f "$VENV_PY" ]; then
+    VENV_PY=$(command -v python3)
+fi
+
 # =============================================================================
 # 1. PREPARACIÓN EN RAM DE RAMDISK (/dev/shm)
 # =============================================================================
 RAM_DIR="/dev/shm/qtile_overview"
 mkdir -p "$RAM_DIR"
 
-# Generar paleta por defecto si no existe en RAM para evitar errores de lectura
+# Generar paleta por defecto si no existe en RAM para evitar errores de lectura al inicio
 if [ ! -f "$RAM_DIR/palette.json" ]; then
     cat <<EOF > "$RAM_DIR/palette.json"
 {
@@ -21,19 +30,29 @@ EOF
 fi
 
 # =============================================================================
-# 2. DEMONIOS DEL SISTEMA Y NOTIFICACIONES
+# 2. GENERADOR DE PALETAS EN SEGUNDO PLANO (VENV)
 # =============================================================================
-# Notificaciones
-mako &
-
-# Gestor de Papelera / Portapapeles (Opcional si usas wl-clipboard/cliphist)
-# cliphist daemon &
+# Procesa los fondos e inicializa los esquemas JSON en RAM
+if [ -f "$SCRIPT_DIR/scripts/generate_palettes.py" ]; then
+    "$VENV_PY" "$SCRIPT_DIR/scripts/generate_palettes.py" &
+fi
 
 # =============================================================================
-# 3. WALLPAPER Y GENERADOR DE COLORES CAMALEÓNICOS
+# 3. DEMONIOS DEL SISTEMA Y NOTIFICACIONES
 # =============================================================================
-# Si usas hyprpaper, swaybg o feh para tu fondo:
-# swaybg -i ~/.config/qtile/wallpapers/wp_1.jpg -m fill &
+if command -v mako &> /dev/null; then
+    mako &
+fi
 
-# Si usas Pywal o un script custom para actualizar la paleta en RAM:
-# python3 ~/.config/qtile/scripts/generate_palette.py &
+# Gestor de Papelera / Portapapeles
+if command -v cliphist &> /dev/null && command -v wl-paste &> /dev/null; then
+    wl-paste --watch cliphist store &
+fi
+
+# =============================================================================
+# 4. FONDO DE PANTALLA INICIAL (WAYLAND)
+# =============================================================================
+INITIAL_WP="$SCRIPT_DIR/wallpapers/wp_1.jpg"
+if [ -f "$INITIAL_WP" ] && command -v swaybg &> /dev/null; then
+    swaybg -i "$INITIAL_WP" -m fill &
+fi
