@@ -58,6 +58,11 @@
           export XDG_RUNTIME_DIR=/tmp/runtime-nix
           mkdir -p $XDG_RUNTIME_DIR
           chmod 0700 $XDG_RUNTIME_DIR
+          export LANG=C.UTF-8
+          export LC_ALL=C.UTF-8
+
+          echo "Entorno Nix Flake activo para Qtile Wayland."
+        '';
 
           # Variables críticas para que PySide6 (Qt6) reconozca Wayland en el entorno headless
           export QT_QPA_PLATFORM=wayland
