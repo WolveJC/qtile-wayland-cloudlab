@@ -1,6 +1,5 @@
-__pycache__/
-*.py[cod]
-*$py.class
-.DS_Store
-*.swp
-*.tmp
+.devcontainer/
+flake.lock
+flake.nix
+start-wayland-vnc.sh
+README.md
