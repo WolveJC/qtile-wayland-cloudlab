@@ -1,21 +1,43 @@
 #!/usr/bin/env bash
+# ~/.config/qtile/autostart.sh
+# Se ejecuta una vez por sesion de Qtile (hook startup_once en config.py).
 
-# Detectar la ruta base del repositorio y la ubicación del entorno virtual
+# Ruta base del repositorio (funciona clonado en cualquier lugar)
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-VENV_PY="$SCRIPT_DIR/venv/bin/python"
+PY="$(command -v python3)"
 
-# Fallback al python3 del sistema de forma compatible con entornos POSIX/Docker
-if [ ! -f "$VENV_PY" ]; then
-    VENV_PY=$(command -v python3)
+# Deteccion de prueba anidada: si heredamos KDE, Qtile corre como ventana dentro de Plasma.
+# En una sesion real (SDDM/TTY) esta variable no dice KDE.
+NESTED=0
+[[ "$XDG_CURRENT_DESKTOP" == *KDE* ]] && NESTED=1
+
+# =============================================================================
+# 0. ENTORNO DE SESION
+# =============================================================================
+# Qtile no define XDG_CURRENT_DESKTOP; los portales (xdg-desktop-portal) y
+# muchas apps lo usan. En pruebas anidadas dentro de KDE se respeta el existente.
+export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-qtile}"
+
+# Compartir el entorno grafico con D-Bus / systemd --user para que las apps
+# lanzadas por activacion D-Bus (portales, notificaciones) encuentren Wayland.
+if command -v dbus-update-activation-environment &> /dev/null; then
+    dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP &
 fi
 
 # =============================================================================
-# 1. PREPARACIÓN EN RAM DE RAMDISK (/dev/shm)
+# 1. CLUTCH: limpiar autologin temporal de SDDM (si venimos de un cambio de sesion)
+# =============================================================================
+if [ -f "$SCRIPT_DIR/scripts/clutch.py" ]; then
+    "$PY" "$SCRIPT_DIR/scripts/clutch.py" --clear &
+fi
+
+# =============================================================================
+# 2. PREPARACION EN RAM (/dev/shm)
 # =============================================================================
 RAM_DIR="/dev/shm/qtile_overview"
 mkdir -p "$RAM_DIR"
 
-# Generar paleta por defecto si no existe en RAM para evitar errores de lectura al inicio
+# Paleta por defecto si no existe, para evitar errores de lectura al inicio
 if [ ! -f "$RAM_DIR/palette.json" ]; then
     cat <<EOF > "$RAM_DIR/palette.json"
 {
@@ -29,30 +51,22 @@ if [ ! -f "$RAM_DIR/palette.json" ]; then
 EOF
 fi
 
+#  =============================================================================
+# 3. DEMONIOS DE SESION
 # =============================================================================
-# 2. GENERADOR DE PALETAS EN SEGUNDO PLANO (VENV)
-# =============================================================================
-# Procesa los fondos e inicializa los esquemas JSON en RAM
-if [ -f "$SCRIPT_DIR/scripts/generate_palettes.py" ]; then
-    "$VENV_PY" "$SCRIPT_DIR/scripts/generate_palettes.py" &
-fi
-
-# =============================================================================
-# 3. DEMONIOS DEL SISTEMA Y NOTIFICACIONES
-# =============================================================================
-if command -v mako &> /dev/null; then
+# Notificaciones (se omite en pruebas anidadas: KDE ya tiene su propio demonio)
+if [ "$NESTED" = 0 ] && command -v mako &> /dev/null; then
     mako &
 fi
 
-# Gestor de Papelera / Portapapeles
+# Historial del portapapeles
 if command -v cliphist &> /dev/null && command -v wl-paste &> /dev/null; then
     wl-paste --watch cliphist store &
 fi
 
-# =============================================================================
-# 4. FONDO DE PANTALLA INICIAL (WAYLAND)
-# =============================================================================
-INITIAL_WP="$SCRIPT_DIR/wallpapers/wp_1.jpg"
-if [ -f "$INITIAL_WP" ] && command -v swaybg &> /dev/null; then
-    swaybg -i "$INITIAL_WP" -m fill &
+# Agente de autenticacion polkit (pide contrasena en apps graficas que la necesiten).
+# Opcional: solo arranca si esta instalado (paquete: polkit-kde-agent).
+POLKIT_AGENT="/usr/lib/polkit-kde-authentication-agent-1"
+if [ "$NESTED" = 0 ] && [ -x "$POLKIT_AGENT" ]; then
+    "$POLKIT_AGENT" &
 fi
