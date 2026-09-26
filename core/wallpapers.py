@@ -31,7 +31,7 @@ import shutil
 import subprocess
 import tempfile
 import threading
-from typing import Any, Literal, Optional, TypedDict, cast
+from typing import Any, Callable, Literal, Optional, TypedDict, cast
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WP_DIR = os.path.join(BASE_DIR, "wallpapers")
@@ -47,6 +47,7 @@ HOOK_SCRIPT = os.path.join(BASE_DIR, "scripts", "on_theme_change.sh")  # opciona
 OVERVIEW_PALETTE = "/dev/shm/qtile_overview/palette.json"
 EXTENSIONS = (".jpg", ".jpeg", ".png")  # lo que swaybg abre sin plugins extra
 ALGO_VERSION = 2  # subirlo invalida la cache si cambia el algoritmo
+
 
 # Look original (Catppuccin). Se usa sin wallpapers, en grises puros o si falla la extraccion.
 class Palette(TypedDict):
@@ -114,11 +115,11 @@ _mem: dict[str, tuple[Stamp, CacheEntry]] = {}
 
 
 # --------------------------------------------------------------------------- wallpapers
-def _natural_key(name):
+def _natural_key(name: str) -> list[int | str]:
     return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", name)]
 
 
-def list_wallpapers():
+def list_wallpapers() -> list[str]:
     """Rutas absolutas de las imagenes de wallpapers/, en orden natural."""
     try:
         names = os.listdir(WP_DIR)
@@ -129,7 +130,7 @@ def list_wallpapers():
     return [os.path.join(WP_DIR, n) for n in files]
 
 
-def _overrides():
+def _overrides() -> dict[str, str]:
     try:
         with open(os.path.join(WP_DIR, "map.json"), encoding="utf-8") as f:
             return {str(k): str(v) for k, v in json.load(f).items()}
@@ -137,7 +138,7 @@ def _overrides():
         return {}
 
 
-def wallpaper_for_group(name, group_names):
+def wallpaper_for_group(name: Any, group_names: list[Any]) -> Optional[str]:
     """Wallpaper del grupo `name` (posicion dentro de `group_names`). None si no hay imagenes."""
     wps = list_wallpapers()
     if not wps:
@@ -155,44 +156,44 @@ def wallpaper_for_group(name, group_names):
 
 
 # --------------------------------------------------------------------------- colores
-def _clamp(x, lo, hi):
+def _clamp(x: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, x))
 
 
-def _hex(r, g, b):
+def _hex(r: float, g: float, b: float) -> str:
     return "#%02x%02x%02x" % (round(r), round(g), round(b))
 
 
-def _from_hls(h, l, s):
+def _from_hls(h: float, l: float, s: float) -> str:
     r, g, b = colorsys.hls_to_rgb(h % 1.0, _clamp(l, 0, 1), _clamp(s, 0, 1))
     return _hex(r * 255, g * 255, b * 255)
 
 
-def _rgb(hex_):
+def _rgb(hex_: str) -> tuple[int, int, int]:
     return int(hex_[1:3], 16), int(hex_[3:5], 16), int(hex_[5:7], 16)
 
 
-def _luminance(hex_):
-    def lin(c):
+def _luminance(hex_: str) -> float:
+    def lin(c: float) -> float:
         c /= 255
         return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
     r, g, b = (lin(c) for c in _rgb(hex_))
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
 
-def contrast(a, b):
+def contrast(a: str, b: str) -> float:
     """Ratio de contraste WCAG entre dos colores #rrggbb (1..21)."""
     la, lb = sorted((_luminance(a), _luminance(b)), reverse=True)
     return (la + 0.05) / (lb + 0.05)
 
 
-def _hue_dist(a, b):
+def _hue_dist(a: float, b: float) -> float:
     d = abs(a - b) % 1.0
     return min(d, 1.0 - d)
 
 
 # --------------------------------------------------------------------------- extraccion
-def _clusters_pillow(path):
+def _clusters_pillow(path: str) -> list[tuple[int, int, int, int]]:
     """Colores dominantes [(r, g, b, peso)] con Pillow (rapido: JPEG se decodifica reducido)."""
     from PIL import Image
 
@@ -208,7 +209,7 @@ def _clusters_pillow(path):
 _MAGICK_LINE = re.compile(r"^\s*(\d+):\s*\(\s*(\d+),\s*(\d+),\s*(\d+)")
 
 
-def _clusters_magick(path):
+def _clusters_magick(path: str) -> list[tuple[int, int, int, int]]:
     """Alternativa sin Pillow: ImageMagick (dependencia de pywal)."""
     exe = shutil.which("magick") or shutil.which("convert")
     if not exe:
@@ -216,7 +217,7 @@ def _clusters_magick(path):
     cmd = [exe, path + "[0]", "-resize", "96x96", "-colorspace", "sRGB", "-colors", "12",
            "-depth", "8", "-format", "%c", "histogram:info:-"]
     out = subprocess.run(cmd, capture_output=True, text=True, timeout=30).stdout
-    res = []
+    res: list[tuple[int, int, int, int]] = []
     for line in out.splitlines():
         m = _MAGICK_LINE.match(line)
         if m:
@@ -225,7 +226,7 @@ def _clusters_magick(path):
     return res
 
 
-def _clusters(path):
+def _clusters(path: str) -> list[tuple[int, int, int, int]]:
     for fn in (_clusters_pillow, _clusters_magick):
         try:
             found = fn(path)
@@ -236,7 +237,7 @@ def _clusters(path):
     return []
 
 
-def build_palette(clusters) -> Palette:
+def build_palette(clusters: list[tuple[int, int, int, int]]) -> Palette:
     """Deriva una paleta oscura y legible a partir de los colores dominantes."""
     total = sum(c[3] for c in clusters) or 1
     items = []
@@ -245,10 +246,10 @@ def build_palette(clusters) -> Palette:
         _, l, s_hls = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
         items.append({"h": h, "s": s, "v": v, "l": l, "sl": s_hls, "share": n / total})
 
-    def vivid(it):
+    def vivid(it: dict[str, float]) -> bool:
         return it["v"] >= 0.30 and it["s"] >= 0.20
 
-    def score(it):
+    def score(it: dict[str, float]) -> float:
         return (it["share"] ** 0.5) * it["s"] * (0.4 + 0.6 * it["v"])
 
     # Acento: el color mas vistoso (no el mas grande), llevado a un rango legible sobre fondo oscuro.
@@ -287,7 +288,6 @@ def build_palette(clusters) -> Palette:
     }
 
 
-# --------------------------------------------------------------------------- cache
 # --------------------------------------------------------------------------- capa de contraste
 # Minimos WCAG sobre el fondo del esquema (los colores mas oscuros se aclaran conservando su tono).
 MIN_TEXT = 7.0     # texto, color7, cursor
@@ -297,7 +297,7 @@ BRIGHT_STEP = 0.08  # pywal repite los colores normales como "brillantes"; aqui 
 MONO_HUE_SPREAD = 45 / 360  # si color1-6 caben en un arco mas estrecho que esto, se consideran "el mismo color"
 
 
-def ensure_contrast(color, bg, minimum):
+def ensure_contrast(color: str, bg: str, minimum: float) -> str:
     """`color` (#rrggbb) aclarado, sin cambiar su tono, hasta alcanzar `minimum`:1 contra `bg`."""
     if contrast(color, bg) >= minimum:
         return color
@@ -310,7 +310,7 @@ def ensure_contrast(color, bg, minimum):
     return _from_hls(h, 1.0, s)
 
 
-def _lighten(color, amount):
+def _lighten(color: str, amount: float) -> str:
     r, g, b = _rgb(color)
     h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
     return _from_hls(h, min(1.0, l + amount), s)
@@ -425,14 +425,14 @@ def palette_from_scheme(s: Scheme) -> Palette:
 
 
 # --------------------------------------------------------------------------- pywal
-def _wal_exe():
+def _wal_exe() -> Optional[str]:
     return shutil.which("wal")
 
 
 _backend_cache: dict[str, Optional[bool]] = {}
 
 
-def wal_is_pywal16():
+def wal_is_pywal16() -> Optional[bool]:
     """True si el `wal` instalado es pywal16 (soporta --cols16); False si es el pywal original
     (abandonado); None si no hay `wal`. Se cachea: un solo `wal -h` por sesion."""
     exe = _wal_exe()
@@ -589,7 +589,7 @@ def scheme_for(path: str) -> Optional[Scheme]:
         return None
 
 
-def warm_cache():
+def warm_cache() -> None:
     """Precalcula todos los esquemas (se llama en un hilo al arrancar)."""
     for wp in list_wallpapers():
         palette_for(wp)
@@ -599,7 +599,7 @@ def warm_cache():
 _apply_lock = threading.Lock()
 
 
-def apply_scheme(path, is_stale=None):
+def apply_scheme(path: str, is_stale: Optional[Callable[[], bool]] = None) -> bool:
     """Aplica el esquema del wallpaper a todo lo que pywal sabe alimentar.
 
     Recolorea las terminales abiertas (secuencias de escape a cada /dev/pts/*) y renderiza las
@@ -626,7 +626,7 @@ def apply_scheme(path, is_stale=None):
             return False
 
 
-def ensure_cache_symlink():
+def ensure_cache_symlink() -> str:
     """~/.cache/wal -> carpeta en RAM, para que shells y extensiones usen la ruta estandar.
 
     Devuelve "ok", "existe-en-disco" (hay un ~/.cache/wal real de un uso anterior de pywal: no se
@@ -649,7 +649,7 @@ def ensure_cache_symlink():
 
 
 # --------------------------------------------------------------------------- overview
-def _rgba(hex_, alpha):
+def _rgba(hex_: str, alpha: float) -> str:
     r, g, b = _rgb(hex_)
     return f"rgba({r}, {g}, {b}, {alpha})"
 

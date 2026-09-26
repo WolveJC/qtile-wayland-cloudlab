@@ -46,8 +46,34 @@ if [ ! -f "$RAM_DIR/palette.json" ]; then
   "bg_card_active": "rgba(49, 50, 68, 0.8)",
   "bg_card_inactive": "rgba(0, 0, 0, 0.4)",
   "text_color": "#cdd6f4",
-  "bg_overlay": "rgba(15, 15, 23, 0.5)"
+  "bg_overlay": "rgba(17, 17, 27, 0.6)"
 }
+EOF
+fi
+
+# Paleta SCSS por defecto para Eww
+if [ ! -f "$RAM_DIR/colors.scss" ]; then
+    cat <<EOF > "$RAM_DIR/colors.scss"
+\$accent: #89b4fa;
+\$accent2: #f5e0dc;
+\$bg: #1e1e2e;
+\$bg_alt: #181825;
+\$border_normal: #313244;
+\$text: #cdd6f4;
+\$text_dim: #a6adc8;
+EOF
+fi
+
+# Paleta GTK-CSS por defecto para SwayNC
+if [ ! -f "$RAM_DIR/colors.css" ]; then
+    cat <<EOF > "$RAM_DIR/colors.css"
+@define-color accent #89b4fa;
+@define-color accent2 #f5e0dc;
+@define-color bg #1e1e2e;
+@define-color bg_alt #181825;
+@define-color border_normal #313244;
+@define-color text #cdd6f4;
+@define-color text_dim #a6adc8;
 EOF
 fi
 
@@ -55,8 +81,9 @@ fi
 # 3. DEMONIOS DE SESION
 # =============================================================================
 # Notificaciones (se omite en pruebas anidadas: KDE ya tiene su propio demonio)
-if [ "$NESTED" = 0 ] && command -v mako &> /dev/null; then
-    mako &
+if [ "$NESTED" = 0 ] && command -v swaync &> /dev/null; then
+    killall -q swaync
+    swaync &
 fi
 
 # Historial del portapapeles

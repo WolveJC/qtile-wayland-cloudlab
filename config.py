@@ -10,16 +10,22 @@ from libqtile.backend.wayland import InputConfig
 from core.keys import keys
 from core.groups import groups
 from core.layouts import layouts
-from core.widgets import init_bar
-from core.wallpapers import DEFAULT_PALETTE as C
-from core import theme  # noqa: F401  (registra los hooks de wallpaper por grupo y tema)
+from core.wallpapers import DEFAULT_PALETTE as C, ensure_cache_symlink
+from core import theme  # noqa: F401 (registra hooks de wallpaper por grupo y tema)
+from core.eww_ipc import init_eww_ipc
 
-# Configuración de pantallas y barra de estado
+# 1. Garantizar symlink ~/.cache/wal -> RAM
+ensure_cache_symlink()
+
+# 2. Inicializar hooks IPC para Eww (notificaciones en tiempo real)
+init_eww_ipc()
+
+# Configuración de pantallas (Eww gestiona la barra)
 screens = [
-    Screen(bottom=init_bar())
+    Screen()
 ]
 
-# Modos de integración flotante por defecto (diálogos, emergentes)
+# Reglas de ventanas flotantes
 floating_layout = layout.Floating(
     border_focus=C["accent"],
     border_normal=C["border_normal"],
@@ -43,7 +49,7 @@ auto_fullscreen = True
 focus_on_window_activation = "smart"
 reconfigure_screens = True
 
-
+# Entradas Wayland (Teclado Latam + Touchpad)
 wl_input_rules = {
     "type:keyboard": InputConfig(kb_layout="latam"),
     "type:touchpad": InputConfig(tap=True, natural_scroll=True),

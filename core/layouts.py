@@ -3,6 +3,7 @@ from libqtile import layout
 from core.bsp_preselect import PreselectBsp
 from core.wallpapers import DEFAULT_PALETTE as C  # colores iniciales; core/theme.py los cambia en vivo
 
+# Configuración base para todos los layouts con soporte de tematización
 layout_theme = {
     "border_width": 2,
     "margin": 8,
@@ -10,6 +11,7 @@ layout_theme = {
     "border_normal": C["border_normal"],
 }
 
+# Lista de layouts disponibles en la sesión
 layouts = [
     PreselectBsp(**layout_theme),
     layout.MonadTall(**layout_theme),

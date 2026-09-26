@@ -1,59 +1,53 @@
 # ~/.config/qtile/core/keys.py
 import os
 import sys
+from typing import List
 from libqtile.config import Key
 from libqtile.lazy import lazy
 
 # --- Variables Principales ---
-mod = "mod1" if os.environ.get("QTILE_NESTED") else "mod4"  # Tecla window o Alt
-
-terminal = "kitty"
+mod: str = "mod1" if os.environ.get("QTILE_NESTED") else "mod4" # Tecla window o Alt
+terminal: str = "kitty"
 
 # Obtener la ruta base del repositorio dinámicamente
-base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+base_dir: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-ghost_theme = os.path.join(base_dir, "scripts", "ghost.rasi")
-launcher = f"rofi -show drun -theme {ghost_theme}"
-clipboard_menu = f"rofi -dmenu -theme {ghost_theme} -p clipboard"
-venv_python_candidate = os.path.join(base_dir, "venv", "bin", "python")
-if os.path.exists(venv_python_candidate):
-    VENV_PYTHON = venv_python_candidate
-else:
-    VENV_PYTHON = sys.executable
-overview_script = os.path.join(base_dir, "overview", "overview.py")
+ghost_theme: str = os.path.join(base_dir, "scripts", "ghost.rasi")
+launcher: str = f"rofi -show drun -theme {ghost_theme}"
+clipboard_menu: str = f"rofi -dmenu -theme {ghost_theme} -p 'Clipboard'"
 
-overview_cmd = f"{VENV_PYTHON} {overview_script}"
+venv_python_candidate: str = os.path.join(base_dir, "venv", "bin", "python")
+VENV_PYTHON: str = venv_python_candidate if os.path.exists(venv_python_candidate) else sys.executable
 
-# Clutch: cambio de sesion Qtile -> KDE (registra en ~/.local/share/qtile/clutch.log)
-clutch_script = os.path.join(base_dir, "scripts", "clutch.py")
-clutch_to_kde = f"python3 {clutch_script} kde"
+overview_script: str = os.path.join(base_dir, "overview", "overview.py")
+overview_cmd: str = f"{VENV_PYTHON} {overview_script}"
 
-# Historial de portapapeles (cliphist ya corre desde autostart.sh; esto solo abre el menu).
-# shell=True porque la tuberia (|) necesita /bin/sh -c, no un solo comando.
-clipboard_pick = f"cliphist list | {clipboard_menu} | cliphist decode | wl-copy"
+clutch_script: str = os.path.join(base_dir, "scripts", "clutch.py")
+clutch_to_kde: str = f"python3 {clutch_script} kde"
 
-keys = [
+# Pipeline explícito para Cliphist (Módulo 3)
+clipboard_pick: str = f"cliphist list | {clipboard_menu} | cliphist decode | wl-copy"
+
+keys: List[Key] = [
     # -------------------------------------------------------------------------
     # Lanzadores del Entorno & GUI Custom
     # -------------------------------------------------------------------------
     Key([mod], "Return", lazy.spawn(terminal), desc="Abrir Terminal Kitty"),
     Key([mod], "space", lazy.spawn(launcher), desc="Lanzador Rofi Wayland"),
-
-    # Modo Exposición / Overview (PySide6 Camaleónico)
     Key([mod], "Tab", lazy.spawn(overview_cmd), desc="Activar Modo Exposición"),
-    Key([mod, "shift"], "e", lazy.spawn(clutch_to_kde), desc="Cambiar a sesion KDE"),
+    Key([mod, "shift"], "e", lazy.spawn(clutch_to_kde), desc="Cambiar a sesión KDE"),
 
     # -------------------------------------------------------------------------
-    # Portapapeles (cliphist + rofi)
+    # Módulo 3: Portapapeles (Cliphist)
     # -------------------------------------------------------------------------
     Key([mod], "v", lazy.spawn(clipboard_pick, shell=True), desc="Historial de portapapeles"),
 
     # -------------------------------------------------------------------------
-    # Gestión de Notificaciones (Mako)
+    # Gestión de Notificaciones
     # -------------------------------------------------------------------------
-    Key(["control"], "space", lazy.spawn("makoctl dismiss"), desc="Descartar notificación"),
-    Key(["control", "shift"], "space", lazy.spawn("makoctl dismiss -a"), desc="Descartar todas las notificaciones"),
-
+    Key(["control"], "space", lazy.spawn("swaync-client --close-latest"), desc="Cerrar última notificación"),
+    Key(["control", "shift"], "space", lazy.spawn("swaync-client --close-all"), desc="Cerrar todas las notificaciones"),
+    Key([mod, "shift"], "n", lazy.spawn("swaync-client -t -sw"), desc="Abrir/Cerrar Centro de Notificaciones"),
     # -------------------------------------------------------------------------
     # Navegación entre Ventanas (Foco)
     # -------------------------------------------------------------------------
@@ -63,7 +57,7 @@ keys = [
     Key([mod], "k", lazy.layout.up(), desc="Mover foco arriba"),
 
     # -------------------------------------------------------------------------
-    # Desplazamiento de Ventanas (Mosaico / Layout)
+    # Desplazamiento de Ventanas (Mosaico)
     # -------------------------------------------------------------------------
     Key([mod, "shift"], "h", lazy.layout.shuffle_left(), desc="Mover ventana a la izquierda"),
     Key([mod, "shift"], "l", lazy.layout.shuffle_right(), desc="Mover ventana a la derecha"),
@@ -71,24 +65,20 @@ keys = [
     Key([mod, "shift"], "k", lazy.layout.shuffle_up(), desc="Mover ventana arriba"),
 
     # -------------------------------------------------------------------------
-    # Preseleccion de direccion (solo tiene efecto en PreselectBsp; en otros
-    # layouts, Qtile ignora en silencio el primer comando y solo abre rofi).
-    # Un solo uso: se consume con la proxima ventana que se abra, la pidas o no.
+    # Módulo 1: Preselección en Layout BSP + Lanzador
     # -------------------------------------------------------------------------
-    Key([mod, "control"], "h", lazy.layout.preselect("left"), lazy.spawn(launcher),
-        desc="Preseleccionar izquierda + elegir app"),
-    Key([mod, "control"], "l", lazy.layout.preselect("right"), lazy.spawn(launcher),
-        desc="Preseleccionar derecha + elegir app"),
-    Key([mod, "control"], "j", lazy.layout.preselect("down"), lazy.spawn(launcher),
-        desc="Preseleccionar abajo + elegir app"),
-    Key([mod, "control"], "k", lazy.layout.preselect("up"), lazy.spawn(launcher),
-        desc="Preseleccionar arriba + elegir app"),
+    Key([mod, "control"], "h", lazy.layout.preselect("left"), lazy.spawn(launcher), desc="Preseleccionar división izquierda y abrir Rofi"),
+    Key([mod, "control"], "l", lazy.layout.preselect("right"), lazy.spawn(launcher), desc="Preseleccionar división derecha y abrir Rofi"),
+    Key([mod, "control"], "j", lazy.layout.preselect("down"), lazy.spawn(launcher), desc="Preseleccionar división abajo y abrir Rofi"),
+    Key([mod, "control"], "k", lazy.layout.preselect("up"), lazy.spawn(launcher), desc="Preseleccionar división arriba y abrir Rofi"),
+
+    # Alternancia de Layouts
+    Key([mod, "control"], "space", lazy.next_layout(), desc="Cambiar layout (Bsp/MonadTall/...)"),
 
     # -------------------------------------------------------------------------
     # Gestión de Ventanas y Sistema Qtile
     # -------------------------------------------------------------------------
     Key([mod], "q", lazy.window.kill(), desc="Cerrar ventana activa"),
-    Key([mod, "control"], "space", lazy.next_layout(), desc="Cambiar de layout (Bsp/MonadTall/...)"),
     Key([mod, "control"], "r", lazy.reload_config(), desc="Recargar configuración de Qtile"),
     Key([mod, "control"], "q", lazy.shutdown(), desc="Cerrar sesión de Qtile"),
 ]
