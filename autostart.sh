@@ -78,7 +78,16 @@ EOF
 fi
 
 #  =============================================================================
-# 3. DEMONIOS DE SESION
+# 3. PANEL (EWW)
+# =============================================================================
+# Se lanza en segundo plano: launch_eww.sh ya se auto-omite en pruebas anidadas
+# dentro de KDE y si 'eww' no está instalado.
+if [ -f "$SCRIPT_DIR/scripts/launch_eww.sh" ]; then
+    bash "$SCRIPT_DIR/scripts/launch_eww.sh" &
+fi
+
+#  =============================================================================
+# 4. DEMONIOS DE SESION
 # =============================================================================
 # Notificaciones (se omite en pruebas anidadas: KDE ya tiene su propio demonio)
 if [ "$NESTED" = 0 ] && command -v swaync &> /dev/null; then

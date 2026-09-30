@@ -14,6 +14,7 @@ del grupo aun no esta calculada, se pone el wallpaper, se calcula en un hilo y s
 Se importa desde config.py; los hooks se registran al importar. Todo esta envuelto en
 try/except: un fallo aqui NUNCA debe tumbar la config de Qtile.
 """
+import json
 import os
 import shutil
 import signal
@@ -25,6 +26,7 @@ from libqtile import hook, qtile as _qtile_obj
 from libqtile.log_utils import logger
 
 from core import wallpapers
+from core.eww_ipc import _eww_exe  # mismo lookup robusto (PATH angosto de la sesión + fallbacks)
 
 # Solución pragmática al stub interno de Qtile (_UndefinedQtile)
 qtile: Any = _qtile_obj
@@ -32,6 +34,16 @@ qtile: Any = _qtile_obj
 _DEBOUNCE_GROUP: float = 0.12   # cambiar de grupo rapido no lanza un swaybg por cada salto
 _DEBOUNCE_START: float = 0.40   # dar tiempo a que la barra termine de configurarse
 _DEBOUNCE_CLIENT: float = 1.0   # una ventana nueva necesita un instante para tener su pty
+
+# --------------------------------------------------------------------------- Duración del "camaleón"
+# Un solo número controla TODO el cambio de color al saltar de grupo:
+#   - la animación de bordes de Qtile (interpolación RGB, fotograma a fotograma), y
+#   - la transición CSS de la barra de Eww (se exporta como $transition_ms en colors.scss;
+#     eww.scss lo usa en vez de tener valores sueltos hardcodeados por selector).
+# Subilo si te parece muy rápido, bajalo si te parece lento -- no hace falta tocar nada más.
+THEME_TRANSITION_SECONDS: float = 0.6
+
+_ANIM_FRAME_INTERVAL: float = 0.025  # ~40 fps; esto define la fluidez, no la duración total
 
 
 class ThemeState(TypedDict):
@@ -50,13 +62,13 @@ _reapply: Any = None
 _border_anim_timer: Any = None  # Temporizador para la animación de bordes de ventanas
 
 _state: ThemeState = {
-    "wallpaper": None, 
-    "palette": None, 
-    "proc": None, 
+    "wallpaper": None,
+    "palette": None,
+    "proc": None,
     "warned": False,
-    "scheme_wp": None, 
-    "gen": 0, 
-    "computing": set(), 
+    "scheme_wp": None,
+    "gen": 0,
+    "computing": set(),
     "warned_scheme": False
 }
 
@@ -110,10 +122,14 @@ def _export_scss(p: wallpapers.Palette) -> None:
     try:
         ram_dir = "/dev/shm/qtile_overview"
         os.makedirs(ram_dir, exist_ok=True)
-        
+
         # 1. SCSS para Eww ($variable: valor;)
         scss_path = os.path.join(ram_dir, "colors.scss")
-        scss_content = "\n".join(f"${key}: {value};" for key, value in p.items()) + "\n"
+        transition_ms = round(THEME_TRANSITION_SECONDS * 1000)
+        scss_content = (
+            "\n".join(f"${key}: {value};" for key, value in p.items())
+            + f"\n$transition_ms: {transition_ms}ms;\n"
+        )
         with open(scss_path, "w", encoding="utf-8") as f:
             f.write(scss_content)
 
@@ -123,15 +139,16 @@ def _export_scss(p: wallpapers.Palette) -> None:
         with open(gtk_path, "w", encoding="utf-8") as f:
             f.write(gtk_content)
 
-        # Notificar a Eww
-        if shutil.which("eww"):
-            subprocess.Popen(
-                ["eww", "reload"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+        # NOTA: ya NO se llama 'eww reload' acá. 'eww reload' recompila y reconstruye
+        # toda la ventana desde cero -- rompe la transición CSS (no hay "antes" del
+        # que GTK pueda interpolar) y causa un parpadeo visible en cada cambio de
+        # grupo. Los colores reales de la barra viajan como variable viva de Eww
+        # (ver _push_eww_palette más abajo, con 'eww update', no 'eww reload').
+        # colors.scss se sigue escribiendo por $transition_ms (estático, casi nunca
+        # cambia) y como respaldo por si algo más adelante lo necesita importar.
 
-        # Notificar recarga de estilos a SwayNC (-rs = reload css)
+        # Notificar recarga de estilos a SwayNC (-rs = reload css) -- SwayNC no tiene
+        # un mecanismo de variables vivas como Eww, así que sí necesita este reload.
         if shutil.which("swaync-client"):
             subprocess.Popen(
                 ["swaync-client", "-rs"],
@@ -141,13 +158,35 @@ def _export_scss(p: wallpapers.Palette) -> None:
     except Exception:
         logger.exception("theme: no pude exportar temas a RAM")
 
+
+def _push_eww_palette(p: wallpapers.Palette) -> None:
+    """Actualiza los colores de la barra de Eww vía variable viva ('eww update'),
+    SIN pedir un reload. Así el widget de la barra nunca se destruye/reconstruye,
+    y la transición CSS declarada en eww.scss (`transition: ... $transition_ms`)
+    anima de verdad entre el color viejo y el nuevo -- 'eww reload' rompía esto por
+    completo (recompila y recrea toda la ventana, sin ningún "antes" del que
+    interpolar), y de paso causaba un parpadeo visible en cada cambio de grupo.
+    """
+    eww_exe = _eww_exe()
+    if not eww_exe:
+        return
+    try:
+        payload = json.dumps(dict(p))
+        subprocess.Popen(
+            [eww_exe, "update", f"var_palette={payload}"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        logger.exception("theme: no pude actualizar la paleta en vivo de Eww")
+
 # --------------------------------------------------------------------------- wallpaper
 def _swaybg_pids() -> List[int]:
     try:
         out = subprocess.run(
             ["pgrep", "-u", str(os.getuid()), "-x", "swaybg"],
-            capture_output=True, 
-            text=True, 
+            capture_output=True,
+            text=True,
             timeout=5
         ).stdout
         return [int(p) for p in out.split()]
@@ -165,9 +204,9 @@ def _set_wallpaper(path: str) -> None:
     prev = _state["proc"]
     try:
         new = subprocess.Popen(
-            ["swaybg", "-i", path, "-m", "fill"], 
+            ["swaybg", "-i", path, "-m", "fill"],
             stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL, 
+            stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=True
         )
@@ -231,11 +270,18 @@ def _apply_layout_palette_step(p_step: dict[str, str]) -> None:
             logger.exception("theme: no pude repintar bordes")
 
 
-def _animate_borders(old_p: wallpapers.Palette, new_p: wallpapers.Palette, step: int = 1, total_steps: int = 8) -> None:
-    """Anima suavemente la transición de color de bordes mediante fotogramas interpolados."""
+def _animate_borders(old_p: wallpapers.Palette, new_p: wallpapers.Palette, step: int = 1, total_steps: Optional[int] = None) -> None:
+    """Anima suavemente la transición de color de bordes mediante fotogramas interpolados.
+
+    La duración total sale de THEME_TRANSITION_SECONDS (un solo lugar para ajustarla),
+    dividida en fotogramas de _ANIM_FRAME_INTERVAL segundos cada uno.
+    """
     global _border_anim_timer
     if qtile is None:
         return
+
+    if total_steps is None:
+        total_steps = max(1, round(THEME_TRANSITION_SECONDS / _ANIM_FRAME_INTERVAL))
 
     factor = step / total_steps
     step_palette: dict[str, str] = {}
@@ -249,9 +295,8 @@ def _animate_borders(old_p: wallpapers.Palette, new_p: wallpapers.Palette, step:
     _apply_layout_palette_step(step_palette)
 
     if step < total_steps:
-        # Programar el siguiente fotograma (~25ms por paso, 200ms total)
         _border_anim_timer = qtile.call_later(
-            0.025,
+            _ANIM_FRAME_INTERVAL,
             _animate_borders,
             old_p,
             new_p,
@@ -282,10 +327,15 @@ def _apply_palette(p: wallpapers.Palette) -> None:
     else:
         _apply_layout_palette_step(cast(dict[str, str], p))
 
-    # Actualizar fondos de barra y widgets de la barra nativa
+    # Actualizar fondos de barra y widgets de la barra nativa (si existe).
+    # NOTA: desde que Eww reserva espacio en la pantalla vía layer-shell, Qtile puede
+    # poblar screen.top/bottom/... con un bar.Gap (para llevar la cuenta del espacio
+    # reservado) en vez de dejarlo en None. Un Gap no tiene .widgets -- solo se procesa
+    # acá si de verdad es una Bar con widgets (la barra nativa, si en algún momento
+    # se vuelve a usar en paralelo a Eww).
     for screen in qtile.screens:
         for b in (screen.top, screen.bottom, screen.left, screen.right):
-            if b is None:
+            if b is None or not hasattr(b, "widgets"):
                 continue
             b.background = p["bg"]
             for w in b.widgets:
@@ -367,6 +417,7 @@ def _apply() -> None:
             _state["palette"] = palette
             wallpapers.write_overview_palette(palette)
             _export_scss(palette)
+            _push_eww_palette(palette)
         if wp and wp != _state["scheme_wp"]:
             _state["scheme_wp"] = wp
             _kick_scheme(wp)

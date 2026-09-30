@@ -1,16 +1,16 @@
 # ~/.config/qtile/config.py
 import os
 import subprocess
-from core.floating import mouse
-from libqtile import hook, layout
-from libqtile.config import Screen, Match
+from core.floating import mouse, floating_layout
+from libqtile import hook
+from libqtile.config import Screen
 from libqtile.backend.wayland import InputConfig
 
 # Importación modular
 from core.keys import keys
 from core.groups import groups
 from core.layouts import layouts
-from core.wallpapers import DEFAULT_PALETTE as C, ensure_cache_symlink
+from core.wallpapers import ensure_cache_symlink
 from core import theme  # noqa: F401 (registra hooks de wallpaper por grupo y tema)
 from core.eww_ipc import init_eww_ipc
 
@@ -24,21 +24,6 @@ init_eww_ipc()
 screens = [
     Screen()
 ]
-
-# Reglas de ventanas flotantes
-floating_layout = layout.Floating(
-    border_focus=C["accent"],
-    border_normal=C["border_normal"],
-    float_rules=[
-        *layout.Floating.default_float_rules,
-        Match(wm_class="confirmreset"),  # gitk
-        Match(wm_class="makebranch"),    # gitk
-        Match(wm_class="maketag"),       # gitk
-        Match(wm_class="ssh-askpass"),   # ssh-askpass
-        Match(title="branchdialog"),     # gitk
-        Match(title="pinentry"),         # GPG key password entry
-    ]
-)
 
 # Opciones Generales
 dnd_rules: list = []

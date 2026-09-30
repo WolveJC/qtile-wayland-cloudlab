@@ -3,6 +3,7 @@ from libqtile import layout
 from libqtile.config import Click, Drag, Match
 from libqtile.lazy import lazy
 from core.keys import mod
+from core.wallpapers import DEFAULT_PALETTE as C  # colores iniciales; core/theme.py los cambia en vivo
 
 # Atajos de Ratón para mover/redimensionar ventanas flotantes
 mouse = [
@@ -11,10 +12,12 @@ mouse = [
     Click([mod], "Button2", lazy.window.bring_to_front()),
 ]
 
-# Reglas para forzar flotación automáticas en diálogos
+# Reglas para forzar flotación automáticas en diálogos.
+# Única fuente de verdad: antes había una segunda copia (ligeramente distinta) inline en
+# config.py; se unificó aquí para que no vuelvan a divergir.
 floating_layout = layout.Floating(
-    border_focus="#89b4fa",
-    border_normal="#1e1e2e",
+    border_focus=C["accent"],
+    border_normal=C["border_normal"],
     border_width=2,
     float_rules=[
         *layout.Floating.default_float_rules,
