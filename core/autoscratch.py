@@ -34,14 +34,15 @@ TERMINAL_WM_CLASS = "scratchpad_term"
 TERMINAL_CMD = ["kitty", "--class", TERMINAL_WM_CLASS]
 
 # Grupo interno donde se esconde la terminal; nunca se muestra en pantalla (ningún
-# bind ni hook lo lleva a un screen). Declarado en core/groups.py. El nombre empieza
-# con "scratchpad" a propósito, para reusar el filtro que ya excluye ese prefijo de
-# la barra en core/eww_ipc.py, sin tener que tocar ese archivo también.
+# bind ni hook lo lleva a un screen). Declarado en core/groups.py. El prefijo
+# "scratchpad" ya no tiene el motivo original (filtrar la barra de Eww, que ya
+# no existe -- la barra paso a Waybar); si el modulo de workspaces de Waybar
+# necesita filtrar este grupo, hay que agregar ese filtro ahi.
 HIDDEN_GROUP_NAME = "scratchpad_hidden"
 
 _FILLER_MATCH = Match(wm_class=TERMINAL_WM_CLASS)
 
-# Grupos para los que ya se pidió un spawn y todavía no aparece la ventana.
+# Grupos para los que ya se pidio un spawn y todavia no aparece la ventana.
 _spawn_pending: set[str] = set()
 
 # Grupo original -> ventana de relleno escondida ahí (para poder devolverla al
@@ -66,7 +67,7 @@ def _spawn_filler(group_name: str) -> None:
 
 def _ensure_filler(group_name: str) -> None:
     """Garantiza que group_name tenga la terminal de relleno: la trae de vuelta si
-    había una escondida por este mismo grupo, o lanza una nueva si no hay ninguna."""
+    habia una escondida por este mismo grupo, o lanza una nueva si no hay ninguna."""
     if qtile is None:
         return
 

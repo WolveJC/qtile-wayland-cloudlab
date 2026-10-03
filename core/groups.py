@@ -27,7 +27,7 @@ for i in groups:
 # switch_group, la saca de la vista sin tocar su proceso (si la app que abriste
 # nació DESDE esa terminal, como su hijo, seguiría corriendo). Se declara al final
 # para no tocar cuál grupo queda visible por defecto en la pantalla al arrancar.
-# El nombre empieza con "scratchpad" a propósito: así el filtro que ya existe en
-# core/eww_ipc.py (pensado originalmente para el viejo ScratchPad) lo excluye de la
-# barra sin tener que tocar ese archivo también.
+# El nombre empieza con "scratchpad" por historia (pensado originalmente para el
+# viejo ScratchPad, y después para el filtro de la barra de Eww); ya no hay
+# ningún filtro activo que dependa de ese prefijo -- la barra pasó a Waybar.
 groups.append(Group(core.autoscratch.HIDDEN_GROUP_NAME))

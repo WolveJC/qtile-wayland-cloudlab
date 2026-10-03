@@ -12,15 +12,11 @@ from core.groups import groups
 from core.layouts import layouts
 from core.wallpapers import ensure_cache_symlink
 from core import theme  # noqa: F401 (registra hooks de wallpaper por grupo y tema)
-from core.eww_ipc import init_eww_ipc
 
 # 1. Garantizar symlink ~/.cache/wal -> RAM
 ensure_cache_symlink()
 
-# 2. Inicializar hooks IPC para Eww (notificaciones en tiempo real)
-init_eww_ipc()
-
-# Configuración de pantallas (Eww gestiona la barra)
+# Configuración de pantallas (Waybar gestiona la barra; ver autostart.sh)
 screens = [
     Screen()
 ]

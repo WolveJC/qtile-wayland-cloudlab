@@ -2,7 +2,8 @@
 """Tema dinamico: cada grupo tiene su wallpaper y los colores salen de ese wallpaper.
 
 Al cambiar de grupo (hook `setgroup`):
-1. pone el wallpaper del grupo (swaybg nuevo -> se mata el viejo: sin parpadeo),
+1. pone el wallpaper del grupo (swww img, con transición de fundido -- swww-daemon
+   debe estar corriendo ya, ver scripts/launch_swww.sh),
 2. recolorea en caliente bordes de layouts (con animacion gradual RGB), barra y widgets (sin reload_config),
 3. en un hilo aparte, aplica el esquema (pywal + capa de contraste) al resto del sistema:
    terminales abiertas, plantillas en ~/.cache/wal, hook opcional del usuario.
@@ -17,29 +18,28 @@ try/except: un fallo aqui NUNCA debe tumbar la config de Qtile.
 import json
 import os
 import shutil
-import signal
 import subprocess
 import threading
-from typing import Any, List, Optional, TypedDict, cast
+from typing import Any, Optional, TypedDict, cast
 
 from libqtile import hook, qtile as _qtile_obj
 from libqtile.log_utils import logger
 
 from core import wallpapers
-from core.eww_ipc import _eww_exe  # mismo lookup robusto (PATH angosto de la sesión + fallbacks)
 
 # Solución pragmática al stub interno de Qtile (_UndefinedQtile)
 qtile: Any = _qtile_obj
 
-_DEBOUNCE_GROUP: float = 0.12   # cambiar de grupo rapido no lanza un swaybg por cada salto
+_DEBOUNCE_GROUP: float = 0.12   # cambiar de grupo rapido no lanza un swww img por cada salto
 _DEBOUNCE_START: float = 0.40   # dar tiempo a que la barra termine de configurarse
 _DEBOUNCE_CLIENT: float = 1.0   # una ventana nueva necesita un instante para tener su pty
 
 # --------------------------------------------------------------------------- Duración del "camaleón"
 # Un solo número controla TODO el cambio de color al saltar de grupo:
 #   - la animación de bordes de Qtile (interpolación RGB, fotograma a fotograma), y
-#   - la transición CSS de la barra de Eww (se exporta como $transition_ms en colors.scss;
-#     eww.scss lo usa en vez de tener valores sueltos hardcodeados por selector).
+#   - la transición CSS de Waybar/SwayNC (se exporta como $transition_ms en
+#     _variables.scss; waybar.scss/swaync.scss lo usan en vez de tener valores
+#     sueltos hardcodeados por selector).
 # Subilo si te parece muy rápido, bajalo si te parece lento -- no hace falta tocar nada más.
 THEME_TRANSITION_SECONDS: float = 0.6
 
@@ -47,10 +47,9 @@ _ANIM_FRAME_INTERVAL: float = 0.025  # ~40 fps; esto define la fluidez, no la du
 
 
 class ThemeState(TypedDict):
-    wallpaper: Optional[str]                    # ultimo wallpaper puesto (para no relanzar swaybg igual)
+    wallpaper: Optional[str]                    # ultimo wallpaper puesto (para no repetir el mismo swww img)
     palette: Optional[wallpapers.Palette]        # ultima paleta aplicada a la barra/bordes
-    proc: Optional[subprocess.Popen[bytes]]      # ultimo proceso swaybg lanzado (sin text=True: bytes)
-    warned: bool                                 # ya se avisó una vez de que falta swaybg
+    warned: bool                                 # ya se avisó una vez de que falta swww
     scheme_wp: Optional[str]                     # wallpaper cuyo esquema ya se mando a aplicar
     gen: int                                     # generacion actual (invalida aplicaciones obsoletas)
     computing: set[str]                          # wallpapers cuya paleta se esta calculando ahora
@@ -62,13 +61,12 @@ _reapply: Any = None
 _border_anim_timer: Any = None  # Temporizador para la animación de bordes de ventanas
 
 _state: ThemeState = {
-    "wallpaper": None,
-    "palette": None,
-    "proc": None,
+    "wallpaper": None, 
+    "palette": None, 
     "warned": False,
-    "scheme_wp": None,
-    "gen": 0,
-    "computing": set(),
+    "scheme_wp": None, 
+    "gen": 0, 
+    "computing": set(), 
     "warned_scheme": False
 }
 
@@ -116,117 +114,70 @@ def _interpolate_hex(start_hex: str, end_hex: str, factor: float) -> str:
 
     return _rgb_to_hex((r, g, b))
 
-# --------------------------------------------------------------------------- Exportación SCSS / GTK-CSS
-def _export_scss(p: wallpapers.Palette) -> None:
-    """Exporta la paleta a SCSS (Eww) y GTK-CSS (SwayNC) en RAM y notifica recarga."""
+# --------------------------------------------------------------------------- Exportación de estilos
+# Ruta del repo (no de RAM): style/build.sh compila y recarga Waybar/SwayNC.
+_STYLE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "style")
+
+
+def _export_style(p: wallpapers.Palette) -> None:
+    """Escribe la paleta como SCSS compartido (en RAM, igual que antes con Eww) y
+    dispara style/build.sh, que compila ese SCSS a CSS plano para Waybar y SwayNC
+    y los recarga. A diferencia de Eww (que compilaba su propio SCSS al vuelo,
+    y por eso alcanzaba con 'eww update'), Waybar y SwayNC solo leen CSS ya
+    compilado -- este paso explícito de compilación es necesario para los dos.
+    """
     try:
         ram_dir = "/dev/shm/qtile_overview"
         os.makedirs(ram_dir, exist_ok=True)
 
-        # 1. SCSS para Eww ($variable: valor;)
-        scss_path = os.path.join(ram_dir, "colors.scss")
+        variables_path = os.path.join(ram_dir, "_variables.scss")
         transition_ms = round(THEME_TRANSITION_SECONDS * 1000)
-        scss_content = (
+        content = (
             "\n".join(f"${key}: {value};" for key, value in p.items())
             + f"\n$transition_ms: {transition_ms}ms;\n"
         )
-        with open(scss_path, "w", encoding="utf-8") as f:
-            f.write(scss_content)
+        with open(variables_path, "w", encoding="utf-8") as f:
+            f.write(content)
 
-        # 2. GTK-CSS para SwayNC (@define-color variable valor;)
-        gtk_path = os.path.join(ram_dir, "colors.css")
-        gtk_content = "\n".join(f"@define-color {key} {value};" for key, value in p.items()) + "\n"
-        with open(gtk_path, "w", encoding="utf-8") as f:
-            f.write(gtk_content)
-
-        # NOTA: ya NO se llama 'eww reload' acá. 'eww reload' recompila y reconstruye
-        # toda la ventana desde cero -- rompe la transición CSS (no hay "antes" del
-        # que GTK pueda interpolar) y causa un parpadeo visible en cada cambio de
-        # grupo. Los colores reales de la barra viajan como variable viva de Eww
-        # (ver _push_eww_palette más abajo, con 'eww update', no 'eww reload').
-        # colors.scss se sigue escribiendo por $transition_ms (estático, casi nunca
-        # cambia) y como respaldo por si algo más adelante lo necesita importar.
-
-        # Notificar recarga de estilos a SwayNC (-rs = reload css) -- SwayNC no tiene
-        # un mecanismo de variables vivas como Eww, así que sí necesita este reload.
-        if shutil.which("swaync-client"):
+        build_script = os.path.join(_STYLE_DIR, "build.sh")
+        if os.path.isfile(build_script):
             subprocess.Popen(
-                ["swaync-client", "-rs"],
+                ["bash", build_script],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
     except Exception:
-        logger.exception("theme: no pude exportar temas a RAM")
-
-
-def _push_eww_palette(p: wallpapers.Palette) -> None:
-    """Actualiza los colores de la barra de Eww vía variable viva ('eww update'),
-    SIN pedir un reload. Así el widget de la barra nunca se destruye/reconstruye,
-    y la transición CSS declarada en eww.scss (`transition: ... $transition_ms`)
-    anima de verdad entre el color viejo y el nuevo -- 'eww reload' rompía esto por
-    completo (recompila y recrea toda la ventana, sin ningún "antes" del que
-    interpolar), y de paso causaba un parpadeo visible en cada cambio de grupo.
-    """
-    eww_exe = _eww_exe()
-    if not eww_exe:
-        return
-    try:
-        payload = json.dumps(dict(p))
-        subprocess.Popen(
-            [eww_exe, "update", f"var_palette={payload}"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    except Exception:
-        logger.exception("theme: no pude actualizar la paleta en vivo de Eww")
+        logger.exception("theme: no pude exportar la paleta al pipeline de estilos compartido")
 
 # --------------------------------------------------------------------------- wallpaper
-def _swaybg_pids() -> List[int]:
-    try:
-        out = subprocess.run(
-            ["pgrep", "-u", str(os.getuid()), "-x", "swaybg"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        ).stdout
-        return [int(p) for p in out.split()]
-    except (OSError, ValueError, subprocess.SubprocessError):
-        return []
-
-
 def _set_wallpaper(path: str) -> None:
-    if not shutil.which("swaybg"):
+    """Le pide a swww-daemon (debe estar corriendo ya -- ver scripts/launch_swww.sh)
+    que muestre este wallpaper, con una transición de fundido. A diferencia de
+    swaybg, no hace falta lanzar un proceso nuevo y matar el viejo a mano: el
+    daemon de swww ya sabe hacer la transición él mismo entre la imagen actual
+    y la nueva, por eso esta función quedó mucho más chica que su versión
+    anterior con swaybg.
+    """
+    if not shutil.which("swww"):
         if not _state["warned"]:
-            logger.warning("theme: swaybg no esta instalado; no se cambiaran wallpapers (pacman -S swaybg)")
+            logger.warning("theme: swww no esta instalado; no se cambiaran wallpapers (ver instrucciones de instalacion de swww)")
             _state["warned"] = True
         return
-    old = _swaybg_pids()
-    prev = _state["proc"]
+
     try:
-        new = subprocess.Popen(
-            ["swaybg", "-i", path, "-m", "fill"],
+        subprocess.Popen(
+            [
+                "swww", "img", path,
+                "--transition-type", "fade",
+                "--transition-duration", str(THEME_TRANSITION_SECONDS),
+            ],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            start_new_session=True
+            start_new_session=True,
         )
     except OSError:
-        logger.exception("theme: no pude lanzar swaybg")
-        return
-    _state["proc"] = new
-
-    def _kill_old() -> None:
-        for pid in old:
-            if pid != new.pid:
-                try:
-                    os.kill(pid, signal.SIGTERM)
-                except OSError:
-                    pass
-        if prev is not None:  # cosechar el proceso hijo para que no quede zombi
-            threading.Thread(target=prev.wait, daemon=True).start()
-
-    if qtile is not None:
-        qtile.call_later(0.4, _kill_old)
+        logger.exception("theme: no pude pedirle a swww que cambie el wallpaper")
 
 
 # --------------------------------------------------------------------------- colores en caliente & animación
@@ -416,8 +367,7 @@ def _apply() -> None:
             _apply_palette(palette)
             _state["palette"] = palette
             wallpapers.write_overview_palette(palette)
-            _export_scss(palette)
-            _push_eww_palette(palette)
+            _export_style(palette)
         if wp and wp != _state["scheme_wp"]:
             _state["scheme_wp"] = wp
             _kick_scheme(wp)

@@ -1,0 +1,20 @@
+// ~/.config/qtile/style/swaync.scss
+//
+// Compilado por build.sh a ~/.config/qtile/swaync/style.css (NO se edita el
+// .css a mano, se edita este archivo y se corre build.sh).
+//
+// PLACEHOLDER: mínimo para validar el pipeline. El panel lateral estilo
+// cortina (notificaciones + centro de mando) se diseña en un paso aparte.
+
+@import "/dev/shm/qtile_overview/_variables.scss";
+
+* {
+  font-family: "JetBrainsMono NFM", "JetBrains Mono", sans-serif;
+  font-size: 13px;
+}
+
+.notification-center {
+  background-color: $bg_alt;
+  color: $text;
+  transition: background-color $transition_ms ease, color $transition_ms ease;
+}

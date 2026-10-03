@@ -1,0 +1,24 @@
+// ~/.config/qtile/style/waybar.scss
+//
+// Compilado por build.sh a ~/.config/qtile/waybar/style.css (NO se edita el
+// .css a mano, se edita este archivo y se corre build.sh -- o se espera al
+// próximo cambio de paleta, que lo dispara solo).
+//
+// PLACEHOLDER: esto es apenas lo mínimo para validar que el pipeline de
+// compilación funciona de punta a punta. El contenido real de los módulos
+// (workspaces, reloj, batería, audio, red/bluetooth) se escribe en un paso
+// aparte, reusando los scripts que ya existen en scripts/eww/*.sh como
+// "custom modules" de Waybar.
+
+@import "/dev/shm/qtile_overview/_variables.scss";
+
+* {
+  font-family: "JetBrainsMono NFM", "JetBrains Mono", sans-serif;
+  font-size: 13px;
+}
+
+window#waybar {
+  background-color: $bg;
+  color: $text;
+  transition: background-color $transition_ms ease, color $transition_ms ease;
+}

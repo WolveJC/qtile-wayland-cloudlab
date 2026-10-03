@@ -4,11 +4,14 @@
 
 WAL_JSON="$HOME/.cache/wal/colors.json"
 RAM_DIR="/dev/shm/qtile_overview"
+STYLE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/style"
 
 mkdir -p "$RAM_DIR"
 
 if [ -f "$WAL_JSON" ]; then
-    # 1. Generar colors.scss para Eww
+    # Generar _variables.scss compartido (lo importan waybar.scss y swaync.scss;
+    # ya no hay colors.scss para Eww ni colors.css GTK aparte para SwayNC -- los
+    # dos pasan por el mismo SCSS, compilado por style/build.sh).
     python3 -c "
 import json
 with open('$WAL_JSON') as f:
@@ -22,37 +25,16 @@ scss = f'''\$accent: {c['color4']};
 \$border_normal: {c['color8']};
 \$text: {sp['foreground']};
 \$text_dim: {c['color7']};
+\$transition_ms: 600ms;
 '''
-with open('$RAM_DIR/colors.scss', 'w') as out:
+with open('$RAM_DIR/_variables.scss', 'w') as out:
     out.write(scss)
 "
-
-    # 2. Generar colors.css para SwayNC
-    python3 -c "
-import json
-with open('$WAL_JSON') as f:
-    data = json.load(f)
-c = data['colors']
-sp = data['special']
-css = f'''@define-color accent {c['color4']};
-@define-color accent2 {c['color6']};
-@define-color bg {sp['background']};
-@define-color bg_alt {c['color0']};
-@define-color border_normal {c['color8']};
-@define-color text {sp['foreground']};
-@define-color text_dim {c['color7']};
-'''
-with open('$RAM_DIR/colors.css', 'w') as out:
-    out.write(css)
-"
 fi
 
-# 3. Recargar SwayNC
-if command -v swaync-client &> /dev/null; then
-    swaync-client -rs &> /dev/null &
-fi
-
-# 4. Recargar Eww
-if command -v eww &> /dev/null; then
-    eww reload &> /dev/null &
+# Compilar el SCSS y recargar Waybar + SwayNC (ya no 'eww reload': Eww dejó de
+# ser la barra, y los widgets decorativos que le queden no pasan por este
+# pipeline de la misma forma -- ver eww/eww.yuck).
+if [ -f "$STYLE_DIR/build.sh" ]; then
+    bash "$STYLE_DIR/build.sh" &> /dev/null &
 fi

@@ -1,52 +1,10 @@
-@import "/dev/shm/qtile_overview/colors.scss";
+// ~/.config/eww/eww.scss
+//
+// Todo el CSS viejo de barra/popups (.bar-container, .workspaces, .ws-btn,
+// .window-title, .volume, .network, .battery, .clock, .popup y compañía) se
+// eliminó en esta limpieza -- ver eww.yuck para el motivo completo.
+//
+// Se deja el import para cuando haya widgets decorativos nuevos que también
+// quieran seguir la paleta del wallpaper.
 
-* {
-  all: unset;
-}
-
-.bar-container {
-  background-color: $bg;
-  color: $text;
-  font-family: "JetBrainsMono NFM", "JetBrains Mono", sans-serif;
-  font-size: 13px;
-  padding: 0 8px;
-  /* Transición suave cuando cambia la paleta del wallpaper. La duración sale de
-   *    $transition_ms (definida en colors.scss, a su vez desde THEME_TRANSITION_SECONDS
-   *    en core/theme.py) -- un solo lugar para ajustarla, no un valor suelto por selector. */
-  transition: background-color $transition_ms ease, color $transition_ms ease;
-}
-
-.workspaces {
-  padding: 4px 0;
-
-  .ws-btn {
-    padding: 2px 8px;
-    border-radius: 4px;
-    color: $text_dim;
-    /* GTK CSS no soporta 'all' como propiedad de transición de forma confiable;
-     *      se listan las propiedades reales que cambian. */
-    transition: background-color $transition_ms ease, color $transition_ms ease;
-
-    &:hover {
-      background-color: $bg_alt;
-      color: $text;
-    }
-
-    &.occupied {
-      color: $text;
-    }
-
-    &.active {
-      background-color: $accent;
-      color: $bg_alt;
-      font-weight: bold;
-    }
-  }
-}
-
-.window-title {
-  margin-left: 16px;
-  color: $accent2;
-  font-size: 12px;
-  transition: color $transition_ms ease;
-}
+@import "/dev/shm/qtile_overview/_variables.scss";

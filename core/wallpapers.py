@@ -45,7 +45,7 @@ WAL_DIR = os.path.join(WAL_CACHE_HOME, "wal")          # aqui quedan colors.json
 STD_WAL_LINK = os.path.expanduser("~/.cache/wal")      # ruta estandar que esperan shells y extensiones
 HOOK_SCRIPT = os.path.join(BASE_DIR, "scripts", "on_theme_change.sh")  # opcional: se ejecuta tras aplicar
 OVERVIEW_PALETTE = "/dev/shm/qtile_overview/palette.json"
-EXTENSIONS = (".jpg", ".jpeg", ".png")  # lo que swaybg abre sin plugins extra
+EXTENSIONS = (".jpg", ".jpeg", ".png")  # lo que swww abre sin plugins extra
 ALGO_VERSION = 2  # subirlo invalida la cache si cambia el algoritmo
 
 

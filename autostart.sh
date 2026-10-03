@@ -51,9 +51,10 @@ if [ ! -f "$RAM_DIR/palette.json" ]; then
 EOF
 fi
 
-# Paleta SCSS por defecto para Eww
-if [ ! -f "$RAM_DIR/colors.scss" ]; then
-    cat <<EOF > "$RAM_DIR/colors.scss"
+# SCSS compartido por defecto (Waybar + SwayNC lo importan): evita que
+# style/build.sh falle si corre antes de que core/theme.py escriba el real.
+if [ ! -f "$RAM_DIR/_variables.scss" ]; then
+    cat <<EOF > "$RAM_DIR/_variables.scss"
 \$accent: #89b4fa;
 \$accent2: #f5e0dc;
 \$bg: #1e1e2e;
@@ -61,40 +62,62 @@ if [ ! -f "$RAM_DIR/colors.scss" ]; then
 \$border_normal: #313244;
 \$text: #cdd6f4;
 \$text_dim: #a6adc8;
-EOF
-fi
-
-# Paleta GTK-CSS por defecto para SwayNC
-if [ ! -f "$RAM_DIR/colors.css" ]; then
-    cat <<EOF > "$RAM_DIR/colors.css"
-@define-color accent #89b4fa;
-@define-color accent2 #f5e0dc;
-@define-color bg #1e1e2e;
-@define-color bg_alt #181825;
-@define-color border_normal #313244;
-@define-color text #cdd6f4;
-@define-color text_dim #a6adc8;
+\$transition_ms: 600ms;
 EOF
 fi
 
 #  =============================================================================
-# 3. PANEL (EWW)
+# 3. WALLPAPERS (SWWW)
 # =============================================================================
-# Se lanza en segundo plano: launch_eww.sh ya se auto-omite en pruebas anidadas
-# dentro de KDE y si 'eww' no está instalado.
+# Solo levanta el demonio; el wallpaper real de cada grupo lo pone
+# core/theme.py en cuanto Qtile dispara sus hooks de arranque.
+if [ -f "$SCRIPT_DIR/scripts/launch_swww.sh" ]; then
+    bash "$SCRIPT_DIR/scripts/launch_swww.sh" &
+fi
+
+#  =============================================================================
+# 4. ESTILOS COMPARTIDOS (WAYBAR + SWAYNC)
+# =============================================================================
+# Primera compilación: con los valores por defecto de arriba hasta que
+# core/theme.py escriba la paleta real del wallpaper (dispara su propio
+# build.sh en cada cambio, esto es solo para que no arranquen sin estilos).
+if [ -f "$SCRIPT_DIR/style/build.sh" ]; then
+    bash "$SCRIPT_DIR/style/build.sh"
+fi
+
+#  =============================================================================
+# 5. BARRA (WAYBAR)
+# =============================================================================
+if [ -f "$SCRIPT_DIR/scripts/launch_waybar.sh" ]; then
+    bash "$SCRIPT_DIR/scripts/launch_waybar.sh" &
+fi
+
+#  =============================================================================
+# 6. NOTIFICACIONES Y CENTRO DE MANDO (SWAYNC)
+# =============================================================================
+if [ -f "$SCRIPT_DIR/scripts/launch_swaync.sh" ]; then
+    bash "$SCRIPT_DIR/scripts/launch_swaync.sh" &
+fi
+
+#  =============================================================================
+# 7. WIDGETS DECORATIVOS DE ESCRITORIO (EWW)
+# =============================================================================
 if [ -f "$SCRIPT_DIR/scripts/launch_eww.sh" ]; then
     bash "$SCRIPT_DIR/scripts/launch_eww.sh" &
 fi
 
 #  =============================================================================
-# 4. DEMONIOS DE SESION
+# 8. BLOQUEO POR INACTIVIDAD (SWAYIDLE + HYPRLOCK) -- PENDIENTE, A PROPOSITO
 # =============================================================================
-# Notificaciones (se omite en pruebas anidadas: KDE ya tiene su propio demonio)
-if [ "$NESTED" = 0 ] && command -v swaync &> /dev/null; then
-    killall -q swaync
-    swaync &
-fi
+# El script ya existe y funciona (scripts/launch_lock_idle.sh), pero se deja
+# sin activar por ahora. Descomentar cuando se retome ese frente.
+# if [ -f "$SCRIPT_DIR/scripts/launch_lock_idle.sh" ]; then
+#     bash "$SCRIPT_DIR/scripts/launch_lock_idle.sh" &
+# fi
 
+#  =============================================================================
+# 9. DEMONIOS DE SESION
+# =============================================================================
 # Historial del portapapeles
 if command -v cliphist &> /dev/null && command -v wl-paste &> /dev/null; then
     wl-paste --watch cliphist store &

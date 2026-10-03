@@ -1,53 +1,13 @@
-;; Variables dinámicas que actualiza Qtile mediante hooks
-(defvar var_groups '[{"name":"1","label":"1","focused":true,"occupied":false}]')
-(defvar var_window "")
-;; Paleta de colores en vivo. Qtile la actualiza con 'eww update' (NUNCA con
-;; 'eww reload'): así el widget no se destruye/reconstruye en cada cambio de grupo,
-;; y la transición CSS de eww.scss puede animar de verdad entre el color viejo y
-;; el nuevo -- un 'eww reload' recompila y recrea toda la ventana desde cero, sin
-;; ningún "antes" del que GTK pueda interpolar, y de paso causa un parpadeo visible.
-(defvar var_palette '{"bg":"#1e1e2e","bg_alt":"#313244","text":"#cdd6f4","text_dim":"#a6adc8","accent":"#89b4fa","accent2":"#f38ba8","border_normal":"#45475a"}')
-
-;; Ventana Principal del Panel
-(defwindow bar
-:monitor 0
-:geometry (geometry :x "0%"
-:y "0%"
-:width "100%"
-:height "32px"
-:anchor "top center")
-:stacking "fg"
-:exclusive true
-:focusable false
-(bar_layout))
-
-;; Layout del Contenedor
-(defwidget bar_layout []
-(box :class "bar-container"
-:style "background-color: ${var_palette.bg}; color: ${var_palette.text};"
-:orientation "h"
-:space-evenly false
-(workspaces)
-(window_title)
-;; Espacio a la derecha (reservado para reloj/systray en futuros módulos)
-(box :hexpand true :halign "end")))
-
-;; Widget de Grupos / Workspaces
-(defwidget workspaces []
-(box :class "workspaces"
-:orientation "h"
-:space-evenly false
-:spacing 4
-(for g in var_groups
-(button :class "ws-btn"
-:style "background-color: ${g.focused ? var_palette.accent : (g.occupied ? var_palette.bg_alt : 'transparent')}; color: ${g.focused ? var_palette.bg_alt : (g.occupied ? var_palette.text : var_palette.text_dim)}; font-weight: ${g.focused ? 'bold' : 'normal'};"
-:onclick "qtile cmd-obj -o group ${g.name} -f toscreen"
-"${g.label}"))))
-
-;; Widget de Título de la Ventana Activa
-(defwidget window_title []
-(box :class "window-title"
-:style "color: ${var_palette.accent2};"
-:visible {var_window != ""}
-(label :text var_window
-:limit-width 50)))
+;; ~/.config/eww/eww.yuck
+;;
+;; Eww dejó de ser la barra (eso pasó a Waybar) y los popups de red/audio/
+;; calendario que vivían acá pasaron a ser responsabilidad de Waybar/SwayNC,
+;; o se re-piensan como parte de los widgets decorativos. Todo el contenido
+;; viejo de barra (bar_layout, workspaces, window_title, volume, network,
+;; battery, clock) y los tres popups (calendar_popup, audio_popup,
+;; network_popup) con sus defvar/deflisten se eliminó en esta limpieza.
+;;
+;; PENDIENTE: acá van los widgets puramente decorativos de escritorio (lo que
+;; sea que eso signifique -- fondos animados, algún adorno estético). Todavía
+;; no está definido qué va acá; scripts/launch_eww_widgets.sh ya está listo
+;; para abrir lo que se defina, solo falta escribirlo.
