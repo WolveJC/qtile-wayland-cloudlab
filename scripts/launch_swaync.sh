@@ -19,4 +19,8 @@ if pgrep -x swaync &> /dev/null; then
     exit 0
 fi
 
-swaync &> /dev/null &
+LOG_DIR="$HOME/.local/share/qtile/logs"
+mkdir -p "$LOG_DIR"
+source "$(dirname "${BASH_SOURCE[0]}")/lib_log.sh"
+
+run_logged "$LOG_DIR/swaync.log" swaync

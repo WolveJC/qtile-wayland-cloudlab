@@ -13,17 +13,40 @@
 STYLE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="$(dirname "$STYLE_DIR")"
 
+# Este script lo llaman tres lugares distintos (autostart.sh, core/theme.py en
+# cada cambio de paleta, on_theme_change.sh) -- y core/theme.py lo invoca con
+# stdout/stderr descartados. Para que el log exista sin importar quién lo
+# llame, se loguea desde ACÁ ADENTRO (append, así no se pierde el historial
+# de corridas anteriores en la misma sesión), con timestamp por línea -- no
+# solo un encabezado por corrida.
+LOG_DIR="$HOME/.local/share/qtile/logs"
+mkdir -p "$LOG_DIR"
+exec >> "$LOG_DIR/style-build.log" 2>&1
+
+_ts() {
+    while IFS= read -r line; do
+        printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$line"
+    done
+}
+
+echo "=== build.sh iniciado ===" | _ts
+
 if ! command -v sass &> /dev/null; then
-    echo "[style/build.sh] 'sass' no está instalado; no se puede compilar el SCSS." >&2
+    echo "[style/build.sh] 'sass' no está instalado; no se puede compilar el SCSS." | _ts
     exit 1
 fi
 
 mkdir -p "$CONFIG_DIR/waybar" "$CONFIG_DIR/swaync"
 
-sass "$STYLE_DIR/waybar.scss" "$CONFIG_DIR/waybar/style.css" --no-source-map \
-    || echo "[style/build.sh] fallo compilando waybar.scss" >&2
-sass "$STYLE_DIR/swaync.scss" "$CONFIG_DIR/swaync/style.css" --no-source-map \
-    || echo "[style/build.sh] fallo compilando swaync.scss" >&2
+sass "$STYLE_DIR/waybar.scss" "$CONFIG_DIR/waybar/style.css" --no-source-map 2>&1 | _ts
+if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+    echo "[style/build.sh] fallo compilando waybar.scss" | _ts
+fi
+
+sass "$STYLE_DIR/swaync.scss" "$CONFIG_DIR/swaync/style.css" --no-source-map 2>&1 | _ts
+if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+    echo "[style/build.sh] fallo compilando swaync.scss" | _ts
+fi
 
 # Recargar cada herramienta, solo si está corriendo
 if pgrep -x waybar &> /dev/null; then

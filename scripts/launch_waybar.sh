@@ -18,4 +18,8 @@ if pgrep -x waybar &> /dev/null; then
     exit 0
 fi
 
-waybar &> /dev/null &
+LOG_DIR="$HOME/.local/share/qtile/logs"
+mkdir -p "$LOG_DIR"
+source "$(dirname "${BASH_SOURCE[0]}")/lib_log.sh"
+
+run_logged "$LOG_DIR/waybar.log" waybar

@@ -39,9 +39,12 @@ if command -v wlopm &> /dev/null; then
     DPMS_ON_CMD="wlopm --on '*'"
 fi
 
-swayidle -w \
+LOG_DIR="$HOME/.local/share/qtile/logs"
+mkdir -p "$LOG_DIR"
+source "$(dirname "${BASH_SOURCE[0]}")/lib_log.sh"
+
+run_logged "$LOG_DIR/swayidle.log" swayidle -w \
     timeout 300 "hyprlock" \
     timeout 310 "$DPMS_OFF_CMD" \
     resume "$DPMS_ON_CMD" \
-    before-sleep "hyprlock" \
-    &> /dev/null &
+    before-sleep "hyprlock"
