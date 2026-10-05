@@ -2,7 +2,7 @@
 """Tema dinamico: cada grupo tiene su wallpaper y los colores salen de ese wallpaper.
 
 Al cambiar de grupo (hook `setgroup`):
-1. pone el wallpaper del grupo (swww img, con transición de fundido -- swww-daemon
+1. pone el wallpaper del grupo (awww img, con transición de fundido -- awww-daemon
    debe estar corriendo ya, ver scripts/launch_swww.sh),
 2. recolorea en caliente bordes de layouts (con animacion gradual RGB), barra y widgets (sin reload_config),
 3. en un hilo aparte, aplica el esquema (pywal + capa de contraste) al resto del sistema:
@@ -30,7 +30,7 @@ from core import wallpapers
 # Solución pragmática al stub interno de Qtile (_UndefinedQtile)
 qtile: Any = _qtile_obj
 
-_DEBOUNCE_GROUP: float = 0.12   # cambiar de grupo rapido no lanza un swww img por cada salto
+_DEBOUNCE_GROUP: float = 0.12   # cambiar de grupo rapido no lanza un awww img por cada salto
 _DEBOUNCE_START: float = 0.40   # dar tiempo a que la barra termine de configurarse
 _DEBOUNCE_CLIENT: float = 1.0   # una ventana nueva necesita un instante para tener su pty
 
@@ -47,9 +47,9 @@ _ANIM_FRAME_INTERVAL: float = 0.025  # ~40 fps; esto define la fluidez, no la du
 
 
 class ThemeState(TypedDict):
-    wallpaper: Optional[str]                    # ultimo wallpaper puesto (para no repetir el mismo swww img)
+    wallpaper: Optional[str]                    # ultimo wallpaper puesto (para no repetir el mismo awww img)
     palette: Optional[wallpapers.Palette]        # ultima paleta aplicada a la barra/bordes
-    warned: bool                                 # ya se avisó una vez de que falta swww
+    warned: bool                                 # ya se avisó una vez de que falta awww
     scheme_wp: Optional[str]                     # wallpaper cuyo esquema ya se mando a aplicar
     gen: int                                     # generacion actual (invalida aplicaciones obsoletas)
     computing: set[str]                          # wallpapers cuya paleta se esta calculando ahora
@@ -151,23 +151,23 @@ def _export_style(p: wallpapers.Palette) -> None:
 
 # --------------------------------------------------------------------------- wallpaper
 def _set_wallpaper(path: str) -> None:
-    """Le pide a swww-daemon (debe estar corriendo ya -- ver scripts/launch_swww.sh)
+    """Le pide a awww-daemon (debe estar corriendo ya -- ver scripts/launch_swww.sh)
     que muestre este wallpaper, con una transición de fundido. A diferencia de
     swaybg, no hace falta lanzar un proceso nuevo y matar el viejo a mano: el
-    daemon de swww ya sabe hacer la transición él mismo entre la imagen actual
+    daemon de awww ya sabe hacer la transición él mismo entre la imagen actual
     y la nueva, por eso esta función quedó mucho más chica que su versión
     anterior con swaybg.
     """
-    if not shutil.which("swww"):
+    if not shutil.which("awww"):
         if not _state["warned"]:
-            logger.warning("theme: swww no esta instalado; no se cambiaran wallpapers (ver instrucciones de instalacion de swww)")
+            logger.warning("theme: awww no esta instalado; no se cambiaran wallpapers (ver instrucciones de instalacion de awww)")
             _state["warned"] = True
         return
 
     try:
         subprocess.Popen(
             [
-                "swww", "img", path,
+                "awww", "img", path,
                 "--transition-type", "fade",
                 "--transition-duration", str(THEME_TRANSITION_SECONDS),
             ],
@@ -177,7 +177,7 @@ def _set_wallpaper(path: str) -> None:
             start_new_session=True,
         )
     except OSError:
-        logger.exception("theme: no pude pedirle a swww que cambie el wallpaper")
+        logger.exception("theme: no pude pedirle a awww que cambie el wallpaper")
 
 
 # --------------------------------------------------------------------------- colores en caliente & animación
@@ -435,3 +435,4 @@ def _on_startup_complete() -> None:
                        "Para usar la RAM: mv ~/.cache/wal ~/.cache/wal.bak")
     threading.Thread(target=wallpapers.warm_cache, daemon=True).start()
     _schedule(_DEBOUNCE_START)
+           
