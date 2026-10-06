@@ -11,7 +11,10 @@
 # _variables.scss.
 
 STYLE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIR="$(dirname "$STYLE_DIR")"
+
+# Directorios de destino globales en ~/.config
+WAYBAR_DEST="$HOME/.config/waybar"
+SWAYNC_DEST="$HOME/.config/swaync"
 
 # Este script lo llaman tres lugares distintos (autostart.sh, core/theme.py en
 # cada cambio de paleta, on_theme_change.sh) -- y core/theme.py lo invoca con
@@ -36,14 +39,16 @@ if ! command -v sass &> /dev/null; then
     exit 1
 fi
 
-mkdir -p "$CONFIG_DIR/waybar" "$CONFIG_DIR/swaync"
+# Asegurar carpetas de destino en ~/.config
+mkdir -p "$WAYBAR_DEST" "$SWAYNC_DEST"
 
-sass "$STYLE_DIR/waybar.scss" "$CONFIG_DIR/waybar/style.css" --no-source-map 2>&1 | _ts
+# Compilar a las rutas finales
+sass "$STYLE_DIR/waybar.scss" "$WAYBAR_DEST/style.css" --no-source-map 2>&1 | _ts
 if [ "${PIPESTATUS[0]}" -ne 0 ]; then
     echo "[style/build.sh] fallo compilando waybar.scss" | _ts
 fi
 
-sass "$STYLE_DIR/swaync.scss" "$CONFIG_DIR/swaync/style.css" --no-source-map 2>&1 | _ts
+sass "$STYLE_DIR/swaync.scss" "$SWAYNC_DEST/style.css" --no-source-map 2>&1 | _ts
 if [ "${PIPESTATUS[0]}" -ne 0 ]; then
     echo "[style/build.sh] fallo compilando swaync.scss" | _ts
 fi

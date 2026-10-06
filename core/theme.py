@@ -61,12 +61,12 @@ _reapply: Any = None
 _border_anim_timer: Any = None  # Temporizador para la animación de bordes de ventanas
 
 _state: ThemeState = {
-    "wallpaper": None, 
-    "palette": None, 
+    "wallpaper": None,
+    "palette": None,
     "warned": False,
-    "scheme_wp": None, 
-    "gen": 0, 
-    "computing": set(), 
+    "scheme_wp": None,
+    "gen": 0,
+    "computing": set(),
     "warned_scheme": False
 }
 
@@ -136,6 +136,17 @@ def _export_style(p: wallpapers.Palette) -> None:
             "\n".join(f"${key}: {value};" for key, value in p.items())
             + f"\n$transition_ms: {transition_ms}ms;\n"
         )
+
+        # Si el contenido es idéntico al existente, no sobreescribir ni ejecutar build.sh
+        # para evitar bucles infinitos con observadores de archivos (watchers / inotify).
+        if os.path.isfile(variables_path):
+            try:
+                with open(variables_path, "r", encoding="utf-8") as f:
+                    if f.read() == content:
+                        return
+            except Exception:
+                pass
+
         with open(variables_path, "w", encoding="utf-8") as f:
             f.write(content)
 
@@ -435,4 +446,3 @@ def _on_startup_complete() -> None:
                        "Para usar la RAM: mv ~/.cache/wal ~/.cache/wal.bak")
     threading.Thread(target=wallpapers.warm_cache, daemon=True).start()
     _schedule(_DEBOUNCE_START)
-           

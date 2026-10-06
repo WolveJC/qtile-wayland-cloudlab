@@ -21,7 +21,7 @@ export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-qtile}"
 # Compartir el entorno grafico con D-Bus / systemd --user para que las apps
 # lanzadas por activacion D-Bus (portales, notificaciones) encuentren Wayland.
 if command -v dbus-update-activation-environment &> /dev/null; then
-    dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP &
+    dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
 fi
 
 # =============================================================================

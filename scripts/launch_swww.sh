@@ -7,7 +7,7 @@
 # pase. No pide ninguna imagen por su cuenta, para no pisar/duplicar la
 # primera transición que va a pedir theme.py.
 
-if [ "$XDG_CURRENT_DESKTOP" = "KDE" ] \vert{}\vert{} [ "$DESKTOP_SESSION" = "plasma" ]; then
+if [ "$XDG_CURRENT_DESKTOP" = "KDE" ] || [ "$DESKTOP_SESSION" = "plasma" ]; then
     exit 0
 fi
 
