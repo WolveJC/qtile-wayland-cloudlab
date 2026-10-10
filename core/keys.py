@@ -6,7 +6,9 @@ from libqtile.config import Key
 from libqtile.lazy import lazy
 
 # --- Variables Principales ---
-mod: str = "mod1" if os.environ.get("QTILE_NESTED") else "mod4" # Tecla window o Alt
+PROFILE: str = os.environ.get("QTILE_PROFILE", "desktop")
+# Alt en VNC/anidado (el navegador/host suele capturar Super); Super en escritorio real
+mod: str = "mod1" if (os.environ.get("QTILE_NESTED") or PROFILE == "vnc") else "mod4"
 terminal: str = "kitty"
 
 # Obtener la ruta base del repositorio dinámicamente
@@ -35,7 +37,6 @@ keys: List[Key] = [
     Key([mod], "Return", lazy.spawn(terminal), desc="Abrir Terminal Kitty"),
     Key([mod], "space", lazy.spawn(launcher), desc="Lanzador Rofi Wayland"),
     Key([mod], "Tab", lazy.spawn(overview_cmd), desc="Activar Modo Exposición"),
-    Key([mod, "shift"], "e", lazy.spawn(clutch_to_kde), desc="Cambiar a sesión KDE"),
 
     # -------------------------------------------------------------------------
     # Módulo 3: Portapapeles (Cliphist)
@@ -82,3 +83,7 @@ keys: List[Key] = [
     Key([mod, "control"], "r", lazy.reload_config(), desc="Recargar configuración de Qtile"),
     Key([mod, "control"], "q", lazy.shutdown(), desc="Cerrar sesión de Qtile"),
 ]
+
+# Cambio de sesion KDE <-> Qtile (SDDM): solo tiene sentido en escritorio real
+if PROFILE == "desktop":
+    keys.append(Key([mod, "shift"], "e", lazy.spawn(clutch_to_kde), desc="Cambiar a sesión KDE"))

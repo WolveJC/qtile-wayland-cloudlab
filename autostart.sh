@@ -6,6 +6,10 @@
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PY="$(command -v python3)"
 
+# Perfil de ejecucion. start-wayland-vnc.sh exporta QTILE_PROFILE=vnc; en un
+# escritorio real (SDDM/TTY) la variable no existe y el perfil es "desktop".
+PROFILE="${QTILE_PROFILE:-desktop}"
+
 # Deteccion de prueba anidada: si heredamos KDE, Qtile corre como ventana dentro de Plasma.
 # En una sesion real (SDDM/TTY) esta variable no dice KDE.
 NESTED=0
@@ -27,7 +31,8 @@ fi
 # =============================================================================
 # 1. CLUTCH: limpiar autologin temporal de SDDM (si venimos de un cambio de sesion)
 # =============================================================================
-if [ -f "$SCRIPT_DIR/scripts/clutch.py" ]; then
+# Solo en escritorio real: en VNC no hay SDDM que limpiar.
+if [ "$PROFILE" = desktop ] && [ -f "$SCRIPT_DIR/scripts/clutch.py" ]; then
     "$PY" "$SCRIPT_DIR/scripts/clutch.py" --clear &
 fi
 
@@ -126,6 +131,6 @@ fi
 # Agente de autenticacion polkit (pide contrasena en apps graficas que la necesiten).
 # Opcional: solo arranca si esta instalado (paquete: polkit-kde-agent).
 POLKIT_AGENT="/usr/lib/polkit-kde-authentication-agent-1"
-if [ "$NESTED" = 0 ] && [ -x "$POLKIT_AGENT" ]; then
+if [ "$PROFILE" = desktop ] && [ "$NESTED" = 0 ] && [ -x "$POLKIT_AGENT" ]; then
     "$POLKIT_AGENT" &
 fi

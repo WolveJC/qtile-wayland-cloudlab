@@ -30,8 +30,12 @@ auto_fullscreen = True
 focus_on_window_activation = "smart"
 reconfigure_screens = True
 
+# Perfil: "vnc" (lo exporta start-wayland-vnc.sh) o "desktop" (por defecto)
+PROFILE = os.environ.get("QTILE_PROFILE", "desktop")
+
 # Entradas Wayland (Teclado Latam + Touchpad)
-wl_input_rules = {
+# En VNC no hay hardware: el teclado lo inyecta wayvnc, asi que no se fuerza layout.
+wl_input_rules = {} if PROFILE == "vnc" else {
     "type:keyboard": InputConfig(kb_layout="latam"),
     "type:touchpad": InputConfig(tap=True, natural_scroll=True),
 }

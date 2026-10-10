@@ -1,7 +1,7 @@
 __pycache__/
-*.pyc
-.devcontainer/
-flake.lock
-flake.nix
-start-wayland-vnc.sh
-README.md
+*.py[cod]
+*$py.class
+venv/
+.DS_Store
+*.swp
+*.tmp

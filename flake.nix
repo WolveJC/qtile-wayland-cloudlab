@@ -1,5 +1,5 @@
 {
-  description = "Entorno de desarrollo y pruebas para Qtile Wayland";
+  description = "Entorno de desarrollo y pruebas para Qtile Wayland con Waybar, Eww y Hyprlock";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -21,7 +21,7 @@
           python3Packages.cairocffi
           python3Packages.websockify
           python3Packages.pywal
-          python3Packages.pyside6  # <- Vital para overview.py sin romper pip en el venv
+          python3Packages.pyside6  # Vital para overview.py
           procps
           fontconfig
 
@@ -30,12 +30,24 @@
           wayland
           wayland-utils
           xwayland
-          swaybg
 
-          # Utilidades de Entorno y Demonios (Declarados en autostart.sh)
-          mako
+          # Barras, Widgets, Fondos y Bloqueo
+          waybar
+          eww
+          sass      # style/build.sh compila waybar.scss y swaync.scss
+          awww      # Gestor de fondos en Wayland (core/theme.py llama a `awww img`)
+          hyprlock  # Pantalla de bloqueo (hoy desactivada en autostart.sh)
+          swayidle
+
+          # Notificaciones y Portapapeles
+          swaync
+          libnotify  # notify-send (lo usa clutch.py)
           wl-clipboard
           cliphist
+
+          # Utilidades que invocan los scripts de scripts/ y core/
+          jq
+          imagemagick  # `convert`/`magick`: fallback de wallpapers.py si falla pywal
 
           # Lanzadores y Estética
           rofi
@@ -49,10 +61,20 @@
           kitty
           fish
           mesa
+
+          # OPCIONALES: solo para los widgets de eww (scripts/eww/*.sh). En un
+          # contenedor sin audio/red/bluetooth reales no aportan nada.
+          # pulseaudio      # pactl
+          # pamixer
+          # networkmanager  # nmcli
+          # bluez           # bluetoothctl
         ];
 
         shellHook = ''
-          # Configuración del servidor headless y backend de renderizado
+          # Perfil que leen config.py, core/keys.py y autostart.sh
+          export QTILE_PROFILE=vnc
+
+          # Servidor headless y backend de renderizado
           export WLR_RENDERER=pixman
           export WLR_BACKENDS=headless
           export XDG_RUNTIME_DIR=/tmp/runtime-nix
@@ -61,26 +83,21 @@
           export LANG=C.UTF-8
           export LC_ALL=C.UTF-8
 
-          echo "Entorno Nix Flake activo para Qtile Wayland."
-        '';
-
-          # Variables críticas para que PySide6 (Qt6) reconozca Wayland en el entorno headless
+          # Para que PySide6 (Qt6) use Wayland en el entorno headless
           export QT_QPA_PLATFORM=wayland
           export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 
-          # Crear el venv automáticamente si no existe para mantener la estructura del proyecto
+          # venv del proyecto (core/keys.py lo usa para lanzar overview.py).
+          # --system-site-packages: sin esto el venv NO ve el PySide6 de Nix
+          # y overview.py falla con ModuleNotFoundError.
           if [ ! -d "venv" ]; then
               echo "Creando entorno virtual Python (venv)..."
-              python3 -m venv venv
-              source venv/bin/activate
-              pip install --upgrade pip
-              # Si necesitas aislar algo más por pip, se hará aquí, pero pyside6 ya viene de Nix
-          else
-              source venv/bin/activate
+              python3 -m venv --system-site-packages venv
           fi
+          source venv/bin/activate
 
           echo "=========================================================="
-          echo " Entorno Nix Flake activo para Qtile Wayland + PySide6."
+          echo " Entorno Nix Flake activo para Qtile Wayland (Waybar + Eww)."
           echo "=========================================================="
         '';
       };
